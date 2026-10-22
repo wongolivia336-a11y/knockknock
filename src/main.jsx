@@ -70,6 +70,21 @@ function addEvidence(next, evidence) {
   return { ...next, evidence: [{ ...evidence, id: `${evidence.kind}-${Date.now()}` }, ...next.evidence] };
 }
 
+function Icon({ name, label }) {
+  const shapes = {
+    box: <><rect x="4" y="7" width="16" height="12" rx="2" /><path d="m4 10 8-4 8 4M12 6v13" /><circle cx="12" cy="13" r="1.4" fill="currentColor" stroke="none" /></>,
+    island: <><path d="M3 16c3-4 5-4 8 0s5 4 10-1" /><circle cx="7" cy="7" r="2.2" /><path d="M7 10v3M17 5v4M15 7h4" /></>,
+    evidence: <><rect x="6" y="4" width="12" height="17" rx="1.5" /><path d="M9 9h6M9 13h6M9 17h4" /></>,
+    profile: <><circle cx="12" cy="8" r="3" /><path d="M6 20c.5-3.2 2.5-5 6-5s5.5 1.8 6 5" /></>,
+    refresh: <><path d="M20 11a8 8 0 0 0-14.6-3L4 10" /><path d="M4 5v5h5M4 13a8 8 0 0 0 14.6 3L20 14" /><path d="M20 19v-5h-5" /></>,
+    sound: <><path d="M4 10h4l4-4v12l-4-4H4z" /><path d="M16 9c1.5 1.2 1.5 3.8 0 5M19 7c3 2.2 3 6.8 0 9" /></>,
+    visit: <><path d="M5 19 19 5M11 5h8v8" /><circle cx="6" cy="6" r="2" /></>,
+    relation: <><circle cx="7" cy="12" r="3" /><circle cx="17" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="m9.7 10.7 4.6-2.5M9.7 13.3l4.6 2.5" /></>,
+    light: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></>,
+  };
+  return <svg className="ui-icon" viewBox="0 0 24 24" aria-label={label} role={label ? 'img' : undefined} aria-hidden={label ? undefined : true} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{shapes[name] || shapes.box}</svg>;
+}
+
 function updateFromInteraction(previous, type) {
   let next = {
     ...previous,
@@ -378,7 +393,7 @@ function App() {
   return <div className="app-shell">
     <header className="app-header">
       <div><div className="brand">knock knock</div></div>
-      <button className="text-button" onClick={reset} aria-label="重新开始">↺</button>
+      <button className="text-button" onClick={reset} aria-label="重新开始"><Icon name="refresh" /></button>
     </header>
 
     <main className="prototype-board">
@@ -389,7 +404,7 @@ function App() {
           <UnknownBoxScene feedback={feedback} onTouch={touchBox} />
           <ScribbleLayer />
           <img className="hand-overlay" src="/assets/hand-reaching.png" alt="一只正在靠近未知盒的手绘手" />
-          <div className="scene-circle-mark"><span>◌</span><small>BOX<br />01</small></div>
+          <div className="scene-circle-mark"><span><Icon name="box" /></span><small>BOX<br />01</small></div>
           <div className="scene-caption"><span>touch the box</span><span>轻一点</span></div>
         </div>
         <div className="scene-controls">
@@ -415,10 +430,10 @@ function App() {
               </section>
 
               {tab === 'box' && <section className="phone-home">
-                <div className="phone-note"><span className="mini-icon orange">◌</span><div><strong>今天的回应</strong><small>{state.lastEvent}</small></div><span className="note-arrow">↗</span></div>
+                <div className="phone-note"><span className="mini-icon orange"><Icon name="light" /></span><div><strong>今天的回应</strong><small>{state.lastEvent}</small></div><span className="note-arrow">↗</span></div>
                 <div className="phone-grid-cards">
-                  <div className="phone-mini-card"><span className="mini-icon yellow">✦</span><b>{state.interactions}</b><small>相处次数</small></div>
-                  <div className="phone-mini-card"><span className="mini-icon blue">⌁</span><b>{state.badges.length}</b><small>已留下的章</small></div>
+                  <div className="phone-mini-card"><span className="mini-icon yellow"><Icon name="relation" /></span><b>{state.interactions}</b><small>相处次数</small></div>
+                  <div className="phone-mini-card"><span className="mini-icon blue"><Icon name="evidence" /></span><b>{state.badges.length}</b><small>已留下的章</small></div>
                 </div>
                 <div className="phone-section-line"><span>今天可以</span><span>不用急</span></div>
                 <div className="care-list">
@@ -432,11 +447,11 @@ function App() {
 
               {tab === 'evidence' && <section className="phone-evidence"><div className="sticker-wall"><div className="sticker sticker-orange">还没<br />命名</div><div className="sticker sticker-yellow">它等了<br />一会儿</div><div className="sticker sticker-blue">一段<br />声音</div><div className="sticker sticker-pink">第三次<br />来访</div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <Badge key={id} id={id} title={id === 'origin' ? '还没命名' : id === 'waited' ? '它等了一会儿' : id === 'three-visits' ? '第三次来访' : '一段声音'} copy={copy} unlocked={state.badges.includes(id)} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{state.evidence.slice(0, 4).map(item => <div className="log-row" key={item.id}><span className={`log-dot ${item.kind}`}></span><div><strong>{item.title}</strong><small>{item.note}</small></div><time>{item.time}</time></div>)}</div></section>}
 
-              {tab === 'island' && <section className="phone-island"><div className="island-art-card"><img src="/assets/box-island.png" alt="贴纸式盒群岛插画" /></div><div className="island-icon-grid"><button aria-label="听见声音"><span>♪</span><small>听见</small></button><button aria-label="看看来访"><span>↗</span><small>来访</small></button><button aria-label="看看关系"><span>∞</span><small>关系</small></button></div><div className="phone-section-line"><span>邻居的回应</span><span>慢一点也没关系</span></div><div className="postcard"><span>♪　·　·　·　♪</span><small>047 号盒子 / 晚了 2.4 秒</small></div><button className="primary-button" onClick={sendPostcard}>寄出一段声音</button><div className="social-stat"><span>已寄出 <b>{state.postcards}</b> 张</span><span>偶尔共鸣 <b>{state.social}%</b></span></div></section>}
+              {tab === 'island' && <section className="phone-island"><div className="island-art-card"><img src="/assets/box-island.png" alt="贴纸式盒群岛插画" /></div><div className="island-icon-grid"><button aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div><div className="phone-section-line"><span>邻居的回应</span><span>慢一点也没关系</span></div><div className="postcard"><span>♪　·　·　·　♪</span><small>047 号盒子 / 晚了 2.4 秒</small></div><button className="primary-button" onClick={sendPostcard}>寄出一段声音</button><div className="social-stat"><span>已寄出 <b>{state.postcards}</b> 张</span><span>偶尔共鸣 <b>{state.social}%</b></span></div></section>}
 
               {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一只慢热的小动物</h3><p>不是答案，只是最近留下的几个猜想。</p><div className="profile-doodle"><img src="/assets/presence-stickers.png" alt="手绘的耳朵、眼睛和小动物线索" /></div><div className="axis"><span>靠近</span><i><em style={{ width: `${Math.max(14, state.bond)}%` }}></em></i><span>绕一圈</span></div><div className="axis"><span>回来</span><i className="yellow"><em style={{ width: `${Math.max(14, 100 - state.patience)}%` }}></em></i><span>等一等</span></div><div className="axis"><span>发亮</span><i className="blue"><em style={{ width: `${Math.max(14, state.expression)}%` }}></em></i><span>很细微</span></div><div className="axis"><span>遇见</span><i className="pink"><em style={{ width: `${Math.max(14, state.social)}%` }}></em></i><span>偶尔</span></div><D3TraitPath values={[state.bond, 100 - state.patience, state.expression, state.social]} /><div className="profile-chip-row"><span>像猫一样绕开</span><span>像兔子一样突然</span><span>小鼠似的细听</span></div><p className="profile-footnote">下一次回应，可能会让它变成另一种样子。</p></section>}
             </div>
-            <nav className="bottom-nav"><button className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span>◌</span><small>我的盒子</small></button><button className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span>⌁</span><small>盒群岛</small></button><button className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span>▱</span><small>证据册</small></button><button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span>⋯</span><small>性格档案</small></button></nav>
+            <nav className="bottom-nav"><button className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>我的盒子</small></button><button className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span><Icon name="island" /></span><small>盒群岛</small></button><button className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>证据册</small></button><button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格档案</small></button></nav>
           </div>
         </div>
       </section>
