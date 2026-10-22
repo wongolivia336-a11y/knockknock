@@ -169,66 +169,114 @@ function UnknownBoxScene({ feedback, onTouch }) {
     let renderer;
     try {
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#f7f2e9');
-      const camera = new THREE.OrthographicCamera(-3.8, 3.8, 2.9, -2.9, 0.1, 100);
-      camera.position.set(4.4, 3.2, 6.2);
-      camera.lookAt(0, 0.3, 0);
+      scene.background = new THREE.Color('#e9ddcc');
+      const camera = new THREE.OrthographicCamera(-5.2, 5.2, 3.2, -3.2, 0.1, 100);
+      camera.position.set(4.6, 3.2, 7.4);
+      camera.lookAt(0, -0.2, 0);
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(mount.clientWidth, mount.clientHeight);
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
       mount.appendChild(renderer.domElement);
 
-      const ambient = new THREE.HemisphereLight('#fffaf0', '#d4c6b4', 2.2);
+      const ambient = new THREE.HemisphereLight('#fff8eb', '#9a806d', 2.1);
       scene.add(ambient);
-      const key = new THREE.DirectionalLight('#fff6dc', 3.6);
-      key.position.set(3, 6, 5);
+      const key = new THREE.DirectionalLight('#ffe5b9', 4.2);
+      key.position.set(-3, 6, 5);
       key.castShadow = true;
+      key.shadow.mapSize.set(1024, 1024);
       scene.add(key);
+      const fill = new THREE.PointLight('#e3b8a5', 0.8, 9);
+      fill.position.set(3, 1.7, 2.5);
+      scene.add(fill);
+
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 8, 0.18), new THREE.MeshStandardMaterial({ color: '#f1e5d5', roughness: 1 }));
+      wall.position.set(0, 2.8, -2.9);
+      wall.receiveShadow = true;
+      scene.add(wall);
+      const deskMaterial = new THREE.MeshStandardMaterial({ color: '#ad7c5e', roughness: 0.92 });
+      const desk = new THREE.Mesh(new THREE.BoxGeometry(16, 0.42, 5.5), deskMaterial);
+      desk.position.set(0, -1.34, 0.1);
+      desk.receiveShadow = true;
+      desk.castShadow = true;
+      scene.add(desk);
+      const deskEdge = new THREE.Mesh(new THREE.BoxGeometry(16, 0.95, 0.18), new THREE.MeshStandardMaterial({ color: '#855c47', roughness: 1 }));
+      deskEdge.position.set(0, -1.82, 2.72);
+      scene.add(deskEdge);
+
+      const propMaterial = new THREE.MeshStandardMaterial({ color: '#e8dbc8', roughness: 0.95 });
+      const darkPropMaterial = new THREE.MeshStandardMaterial({ color: '#514842', roughness: 0.9 });
+      const bookData = [
+        [-3.55, -0.96, 0.42, 1.8, 0.23, '#c8a488'],
+        [-3.55, -0.73, 0.5, 1.65, 0.2, '#e7d9c5'],
+        [-3.55, -0.53, 0.55, 1.45, 0.18, '#7c6760'],
+      ];
+      bookData.forEach(([x, y, z, w, h, color], index) => {
+        const book = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.35), new THREE.MeshStandardMaterial({ color, roughness: 0.96 }));
+        book.position.set(x, y, z);
+        book.rotation.z = index === 1 ? -0.04 : 0.02;
+        book.castShadow = true;
+        scene.add(book);
+      });
+      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.56, 32), propMaterial);
+      cup.position.set(3.72, -0.95, 1.0);
+      cup.castShadow = true;
+      scene.add(cup);
+      const cupLip = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.025, 10, 32), darkPropMaterial);
+      cupLip.rotation.x = Math.PI / 2;
+      cupLip.position.set(3.72, -0.66, 1.0);
+      scene.add(cupLip);
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.48, 20), new THREE.MeshStandardMaterial({ color: '#c4a47f', roughness: 1 }));
+      pot.position.set(-4.1, -0.92, -1.0);
+      pot.castShadow = true;
+      scene.add(pot);
+      const leafMaterial = new THREE.MeshStandardMaterial({ color: '#65705b', roughness: 1 });
+      [[-4.25, -0.24, -1.03, 0.52], [-3.95, -0.18, -1.03, -0.7], [-4.15, 0.18, -1.03, 0.35]].forEach(([x, y, z, r]) => {
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 8), leafMaterial);
+        leaf.position.set(x, y, z);
+        leaf.scale.set(0.25, 0.68, 0.12);
+        leaf.rotation.z = r;
+        leaf.castShadow = true;
+        scene.add(leaf);
+      });
 
       const stage = new THREE.Group();
+      stage.position.set(0.05, 0, 0.25);
       scene.add(stage);
-      const boxMaterial = new THREE.MeshStandardMaterial({ color: '#efe1c9', roughness: 0.88, metalness: 0.02 });
-      const lidMaterial = new THREE.MeshStandardMaterial({ color: '#f6ead6', roughness: 0.92, metalness: 0.01 });
-      const signalMaterial = new THREE.MeshStandardMaterial({ color: '#f5d35f', emissive: '#d3742a', emissiveIntensity: 0.25, roughness: 0.55 });
-      const lineMaterial = new THREE.MeshBasicMaterial({ color: '#f2552e' });
-      const box = new THREE.Mesh(new RoundedBoxGeometry(2.55, 1.62, 2.05, 7, 0.22), boxMaterial);
-      box.position.y = 0.05;
+      const boxMaterial = new THREE.MeshStandardMaterial({ color: '#d8c7ae', roughness: 0.96, metalness: 0.01 });
+      const lidMaterial = new THREE.MeshStandardMaterial({ color: '#eadcc8', roughness: 0.97, metalness: 0.01 });
+      const signalMaterial = new THREE.MeshStandardMaterial({ color: '#e5bf59', emissive: '#b86e42', emissiveIntensity: 0.11, roughness: 0.6 });
+      const seamMaterial = new THREE.MeshBasicMaterial({ color: '#8b6d5a' });
+      const signalRingMaterial = new THREE.MeshBasicMaterial({ color: '#d96548', transparent: true, opacity: 0.22 });
+      const box = new THREE.Mesh(new RoundedBoxGeometry(2.52, 1.74, 2.18, 5, 0.12), boxMaterial);
+      box.position.y = -0.03;
       box.castShadow = true;
       box.receiveShadow = true;
       box.userData.kind = 'box';
       stage.add(box);
-      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.25, 0.22, 1.82, 6, 0.12), lidMaterial);
-      lid.position.set(0, 0.93, 0.03);
-      lid.rotation.z = -0.035;
+      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.28, 0.25, 1.92, 5, 0.1), lidMaterial);
+      lid.position.set(0, 0.98, 0.02);
+      lid.rotation.z = -0.018;
       lid.castShadow = true;
       lid.userData.kind = 'box';
       stage.add(lid);
-      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 16), signalMaterial);
-      signal.position.set(0, 0.13, 1.07);
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.025, 0.035), seamMaterial);
+      seam.position.set(0, 0.65, 1.105);
+      stage.add(seam);
+      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 16), signalMaterial);
+      signal.position.set(0, -0.05, 1.15);
       stage.add(signal);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.018, 12, 32), lineMaterial);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.013, 12, 32), signalRingMaterial);
       ring.rotation.x = Math.PI / 2;
-      ring.position.set(0, 0.13, 1.075);
+      ring.position.set(0, -0.05, 1.155);
       stage.add(ring);
-
-      const hiddenSignal = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.02), lineMaterial);
-      hiddenSignal.position.set(0, -0.64, 1.08);
-      hiddenSignal.rotation.z = 0.06;
-      stage.add(hiddenSignal);
-
-      const floor = new THREE.Mesh(new THREE.CircleGeometry(3.1, 64), new THREE.MeshStandardMaterial({ color: '#eee5d8', roughness: 1 }));
-      floor.rotation.x = -Math.PI / 2;
-      floor.position.y = -0.93;
-      floor.receiveShadow = true;
-      scene.add(floor);
 
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
-      let isDown = false;
-      let targetX = 0;
-      let targetY = 0;
       const onPointerDown = (event) => {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -236,24 +284,10 @@ function UnknownBoxScene({ feedback, onTouch }) {
         raycaster.setFromCamera(pointer, camera);
         const hits = raycaster.intersectObjects([box, lid], false);
         if (hits.length) {
-          isDown = true;
           touchRef.current();
-          renderer.domElement.setPointerCapture?.(event.pointerId);
         }
       };
-      const onPointerMove = (event) => {
-        if (!isDown) return;
-        const rect = renderer.domElement.getBoundingClientRect();
-        const nx = (event.clientX - rect.left) / rect.width - 0.5;
-        const ny = (event.clientY - rect.top) / rect.height - 0.5;
-        targetY = THREE.MathUtils.clamp(nx * 0.22, -0.2, 0.2);
-        targetX = THREE.MathUtils.clamp(ny * 0.13, -0.12, 0.12);
-      };
-      const onPointerUp = () => { isDown = false; };
       renderer.domElement.addEventListener('pointerdown', onPointerDown);
-      renderer.domElement.addEventListener('pointermove', onPointerMove);
-      renderer.domElement.addEventListener('pointerup', onPointerUp);
-      renderer.domElement.addEventListener('pointercancel', onPointerUp);
 
       let raf = 0;
       const timer = new THREE.Timer();
@@ -263,17 +297,12 @@ function UnknownBoxScene({ feedback, onTouch }) {
         const currentFeedback = feedbackRef.current;
         const age = Date.now() - currentFeedback.stamp;
         const pulse = age >= 0 && age < 1250 ? Math.sin((age / 1250) * Math.PI) : 0;
-        stage.rotation.x = THREE.MathUtils.lerp(stage.rotation.x, targetX, 0.04);
-        stage.rotation.y = THREE.MathUtils.lerp(stage.rotation.y, targetY, 0.04);
-        targetX *= 0.985;
-        targetY *= 0.985;
-        // A calm breathing drift, deliberately not a shake.
-        stage.position.y = Math.sin(elapsed * 0.45) * 0.018;
-        signalMaterial.emissiveIntensity = 0.22 + pulse * 0.85;
-        signal.scale.setScalar(1 + pulse * 0.12);
-        ring.scale.setScalar(1 + pulse * 0.5);
-        ring.material.opacity = 0.34 + pulse * 0.66;
-        ring.material.transparent = true;
+        // The object barely acknowledges the user: no shake, no jump, no spectacle.
+        stage.position.y = Math.sin(elapsed * 0.35) * 0.006;
+        signalMaterial.emissiveIntensity = 0.11 + pulse * 0.18;
+        signal.scale.setScalar(1 + pulse * 0.045);
+        ring.scale.setScalar(1 + pulse * 0.12);
+        ring.material.opacity = 0.22 + pulse * 0.16;
         renderer.render(scene, camera);
         raf = requestAnimationFrame(animate);
       };
@@ -294,9 +323,6 @@ function UnknownBoxScene({ feedback, onTouch }) {
         cancelAnimationFrame(raf);
         window.removeEventListener('resize', onResize);
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-        renderer.domElement.removeEventListener('pointermove', onPointerMove);
-        renderer.domElement.removeEventListener('pointerup', onPointerUp);
-        renderer.domElement.removeEventListener('pointercancel', onPointerUp);
         renderer.dispose();
         mount.removeChild(renderer.domElement);
       };
@@ -399,12 +425,12 @@ function App() {
     <main className="prototype-board">
       <section className="scene-column" aria-label="独立实体互动场景">
         <div className="scene-topline"><span>今天的盒子</span><span className="status-pill"><i></i> 在</span></div>
-        <h1>先靠近，<br />再决定要不要敲。</h1>
-        <div className="round-scene-shell">
+        <h1>今天，<br />它也在这里。</h1>
+        <div className="scene-stage">
           <UnknownBoxScene feedback={feedback} onTouch={touchBox} />
           <ScribbleLayer />
           <img className="hand-overlay" src="/assets/hand-reaching.png" alt="一只正在靠近未知盒的手绘手" />
-          <div className="scene-circle-mark"><span><Icon name="box" /></span><small>BOX<br />01</small></div>
+          <div className="concept-cross"><span>×</span><div>薛定谔的盒子<small>看不见，但有回应</small></div></div>
           <div className="scene-caption"><span>touch the box</span><span>轻一点</span></div>
         </div>
         <div className="scene-controls">

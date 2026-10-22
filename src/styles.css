@@ -121,7 +121,7 @@ p { margin: 0; max-width: 540px; color: var(--muted); font-size: 14px; line-heig
 .status-pill i { width: 7px; height: 7px; border: 1px solid var(--ink); border-radius: 50%; background: var(--yellow); }
 .board-kicker { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .14em; }
 .board-kicker > span:first-child { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--ink); border-radius: 50%; color: var(--orange); font-size: 10px; letter-spacing: 0; }
-.scene-column h1 { max-width: 560px; margin-bottom: 14px; font-size: clamp(44px, 6vw, 78px); }
+.scene-column h1 { max-width: 470px; margin-bottom: 20px; font-size: clamp(38px, 4.35vw, 60px); line-height: .96; letter-spacing: -.075em; }
 .scene-intro { max-width: 430px; margin-bottom: 25px; }
 .round-scene-shell { position: relative; width: min(100%, 650px); aspect-ratio: 1; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 50%; background: #f1e9dc; box-shadow: 12px 15px 0 rgba(47,42,39,.09); isolation: isolate; }
 .round-scene-shell .scene-host, .round-scene-shell .scene-fallback { height: 100%; width: 100%; }
@@ -256,10 +256,26 @@ button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
 }
 @media (max-width: 580px) {
   .prototype-board { gap: 42px; }
-  .scene-column h1 { font-size: clamp(42px, 13vw, 62px); }
+  .scene-column h1 { font-size: clamp(40px, 13vw, 58px); }
   .scene-intro { font-size: 12px; }
   .phone-column { width: min(100%, 404px); }
   .phone-frame { border-radius: 37px; }
   .phone-caption { flex-direction: column; gap: 4px; }
 }
+
+/* The left half is a live Three.js tabletop, not a flattened hero image. */
+.scene-stage { position: relative; width: min(100%, 860px); aspect-ratio: 16 / 10; overflow: hidden; border: 1px solid var(--ink); border-radius: 24px; background: #e9ddcc; box-shadow: 12px 15px 0 rgba(47,42,39,.1); isolation: isolate; }
+.scene-stage .scene-host, .scene-stage .scene-fallback { width: 100%; height: 100%; }
+.scene-stage .scene-host { cursor: pointer; }
+.scene-stage .scene-host canvas { display: block; width: 100%; height: 100%; }
+.scene-stage .scribble-layer { inset: 0; opacity: .18; }
+.scene-stage .scribble-layer canvas { width: 100%; height: 100%; }
+.scene-stage .hand-overlay { left: -2%; bottom: 5%; width: 34%; max-width: 315px; opacity: .48; mix-blend-mode: multiply; filter: saturate(.65); transform: rotate(-7deg); }
+.concept-cross { position: absolute; z-index: 6; top: 9%; right: 8%; display: flex; align-items: flex-start; gap: 8px; color: var(--ink); transform: rotate(3deg); }
+.concept-cross > span { color: var(--orange); font-size: 30px; font-weight: 300; line-height: .75; }
+.concept-cross > div { font-size: 13px; font-weight: 800; letter-spacing: -.04em; }
+.concept-cross small { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: .02em; }
+.scene-stage .scene-caption { right: 4%; bottom: 4%; left: 4%; z-index: 7; padding-top: 9px; border-top: 1px solid rgba(47,42,39,.18); }
+@media (max-width: 920px) { .scene-column { width: min(100%, 860px); } }
+@media (max-width: 580px) { .scene-stage { border-radius: 18px; } .scene-stage .hand-overlay { width: 38%; bottom: 4%; left: -5%; } .concept-cross { top: 7%; right: 6%; } .concept-cross > div { font-size: 11px; } }
 
