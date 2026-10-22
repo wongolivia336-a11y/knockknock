@@ -334,7 +334,7 @@ function UnknownBoxScene({ feedback, onTouch }) {
   }, []);
 
   if (failed) {
-    return <div className="scene-fallback"><img src="/assets/unknown-box-home.png" alt="未知盒" /><span>3D 场景不可用，已切换为平面预览</span></div>;
+    return <div className="scene-fallback"><div className="fallback-box" aria-hidden="true"><div className="fallback-lid"></div><div className="fallback-signal"></div></div><span>当前设备不支持 WebGL，已切换为纯 CSS 盒体预览</span></div>;
   }
   return <div className="scene-host" ref={mountRef} />;
 }

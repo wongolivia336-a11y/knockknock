@@ -41,7 +41,10 @@ p { margin: 0; max-width: 540px; color: var(--muted); font-size: 14px; line-heig
 .hand-overlay { position: absolute; z-index: 4; left: 4%; bottom: 48px; width: 27%; max-width: 220px; opacity: .58; mix-blend-mode: multiply; pointer-events: none; transform: rotate(-5deg); }
 .scene-caption { position: absolute; right: 18px; bottom: 14px; left: 18px; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; letter-spacing: .05em; }
 .scene-fallback { display: grid; place-items: center; height: 500px; padding: 40px; text-align: center; color: var(--muted); font-size: 12px; }
-.scene-fallback img { width: min(70%, 360px); margin-bottom: 18px; }
+.scene-fallback { gap: 22px; }
+.fallback-box { position: relative; width: 170px; height: 122px; border: 2px solid var(--ink); border-radius: 15px; background: #d8c7ae; box-shadow: 12px 14px 0 rgba(47,42,39,.12); transform: perspective(300px) rotateX(6deg) rotateY(-8deg); }
+.fallback-lid { position: absolute; top: -19px; left: 10px; width: 146px; height: 24px; border: 2px solid var(--ink); border-radius: 10px 10px 5px 5px; background: #eadcc8; transform: skewX(-4deg); }
+.fallback-signal { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; border: 2px solid var(--orange); border-radius: 50%; background: var(--yellow); transform: translate(-50%, -50%); }
 .interaction-column { display: grid; gap: 16px; }
 .message-card, .response-card { border-radius: 20px; padding: 22px; }
 .message-card strong { display: block; margin-bottom: 10px; font-size: 20px; line-height: 1.2; letter-spacing: -.05em; }
