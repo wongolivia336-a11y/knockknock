@@ -1,0 +1,449 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import p5 from 'p5';
+import { curveCatmullRom, line, scaleLinear } from 'd3';
+import './styles.css';
+
+const STORAGE_KEY = 'knock-knock-state-v2';
+
+const DEFAULT_STATE = {
+  bond: 24,
+  patience: 16,
+  expression: 12,
+  social: 4,
+  evidence: [
+    { id: 'seed', title: '它还没有被命名', kind: 'origin', note: '未知仍然保留。', time: '刚刚' },
+    { id: 'quiet', title: '安静的在场', kind: 'behavior', note: '它没有马上回答，但没有离开。', time: '今天' },
+  ],
+  badges: ['origin'],
+  interactions: 0,
+  postcards: 0,
+  lastEvent: '它在等你靠近。',
+};
+
+function loadState() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? { ...DEFAULT_STATE, ...JSON.parse(stored) } : DEFAULT_STATE;
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
+function playTone(type) {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
+    const map = {
+      knock: { frequency: 138, duration: 0.12, volume: 0.06, wave: 'triangle' },
+      reply: { frequency: 330, duration: 0.32, volume: 0.04, wave: 'sine' },
+      postcard: { frequency: 246, duration: 0.5, volume: 0.03, wave: 'sine' },
+    };
+    const sound = map[type] || map.reply;
+    osc.type = sound.wave;
+    osc.frequency.setValueAtTime(sound.frequency, now);
+    osc.frequency.exponentialRampToValueAtTime(sound.frequency * 1.35, now + sound.duration);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(sound.volume, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + sound.duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + sound.duration + 0.03);
+    osc.addEventListener('ended', () => ctx.close());
+  } catch {
+    // Audio is progressive enhancement; the prototype remains usable without it.
+  }
+}
+
+function awardBadge(next, badge) {
+  if (next.badges.includes(badge)) return next;
+  return { ...next, badges: [...next.badges, badge] };
+}
+
+function addEvidence(next, evidence) {
+  return { ...next, evidence: [{ ...evidence, id: `${evidence.kind}-${Date.now()}` }, ...next.evidence] };
+}
+
+function updateFromInteraction(previous, type) {
+  let next = {
+    ...previous,
+    interactions: previous.interactions + 1,
+    bond: Math.min(100, previous.bond + (type === 'wait' ? 5 : 2)),
+    expression: Math.min(100, previous.expression + (type === 'touch' ? 3 : 1)),
+    lastEvent: type === 'knock' ? '它收到了两下敲击，正在想要不要回答。' : type === 'wait' ? '你等了一会儿，它终于留下了一点回应。' : '手指离开后，中心信号亮了一下。',
+  };
+  if (type === 'wait') {
+    next.patience = Math.min(100, previous.patience + 8);
+    next = awardBadge(next, 'waited');
+    next = addEvidence(next, { title: '等到它回答', kind: 'behavior', note: '等待本身也被记录成了一种照料。', time: '刚刚' });
+  }
+  if (type === 'touch') {
+    next = addEvidence(next, { title: '手指靠近过', kind: 'behavior', note: '触摸不是命令，是一次邀请。', time: '刚刚' });
+  }
+  if (next.interactions >= 3) next = awardBadge(next, 'three-visits');
+  return next;
+}
+
+function ScribbleLayer() {
+  const hostRef = useRef(null);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return undefined;
+    const sketch = (p) => {
+      const drawWobblyFrame = (x, y, w, h, color, offset) => {
+        p.noFill();
+        p.stroke(color);
+        p.strokeWeight(1.2);
+        p.beginShape();
+        const points = [[x, y], [x + w, y + 1], [x + w - 1, y + h], [x + 2, y + h - 1], [x, y]];
+        points.forEach(([px, py], index) => p.vertex(px + Math.sin(index + offset) * 1.2, py + Math.cos(index * 1.3 + offset) * 1.1));
+        p.endShape();
+      };
+      p.setup = () => {
+        const canvas = p.createCanvas(Math.max(host.clientWidth, 10), Math.max(host.clientHeight, 10));
+        canvas.parent(host);
+        p.pixelDensity(1);
+        p.clear();
+        drawWobblyFrame(14, 14, p.width - 28, p.height - 28, '#f2552e', 0.4);
+        drawWobblyFrame(17, 17, p.width - 34, p.height - 34, '#c96b50', 1.7);
+        p.stroke('#f2552e');
+        p.strokeWeight(1.2);
+        p.noFill();
+        p.beginShape();
+        for (let i = 0; i < 7; i += 1) {
+          const x = p.width * 0.47 + i * 8;
+          const y = p.height * 0.45 + (i % 2 ? -5 : 5);
+          p.vertex(x, y);
+        }
+        p.endShape();
+        p.noLoop();
+      };
+    };
+    const instance = new p5(sketch);
+    return () => instance.remove();
+  }, []);
+  return <div className="scribble-layer" ref={hostRef} aria-hidden="true" />;
+}
+
+function D3TraitPath({ values }) {
+  const x = scaleLinear().domain([0, values.length - 1]).range([10, 310]);
+  const y = scaleLinear().domain([0, 100]).range([84, 10]);
+  const makeLine = line().x((value, index) => x(index)).y(value => y(value)).curve(curveCatmullRom.alpha(0.65));
+  const points = values.map(value => value);
+  return <div className="d3-trait-wrap"><svg className="d3-trait" viewBox="0 0 320 96" role="img" aria-label="盒子的变化轨迹"><path d={makeLine(points)} fill="none" stroke="#f2552e" strokeWidth="2" strokeLinecap="round" /><path d={makeLine(points.map(value => Math.max(0, value - 8)))} fill="none" stroke="#8cc8d3" strokeWidth="1" strokeDasharray="2 6" /><g>{points.map((value, index) => <circle key={`${value}-${index}`} cx={x(index)} cy={y(value)} r="3.5" fill={index % 2 ? '#f6d96b' : '#f2552e'} stroke="#2f2a27" strokeWidth="1" />)}</g></svg><div className="d3-axis-labels"><span>靠近</span><span>回来</span><span>发亮</span><span>遇见</span></div></div>;
+}
+
+function UnknownBoxScene({ feedback, onTouch }) {
+  const mountRef = useRef(null);
+  const feedbackRef = useRef(feedback);
+  const touchRef = useRef(onTouch);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
+  useEffect(() => { touchRef.current = onTouch; }, [onTouch]);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+    let renderer;
+    try {
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#f7f2e9');
+      const camera = new THREE.OrthographicCamera(-3.8, 3.8, 2.9, -2.9, 0.1, 100);
+      camera.position.set(4.4, 3.2, 6.2);
+      camera.lookAt(0, 0.3, 0);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      mount.appendChild(renderer.domElement);
+
+      const ambient = new THREE.HemisphereLight('#fffaf0', '#d4c6b4', 2.2);
+      scene.add(ambient);
+      const key = new THREE.DirectionalLight('#fff6dc', 3.6);
+      key.position.set(3, 6, 5);
+      key.castShadow = true;
+      scene.add(key);
+
+      const stage = new THREE.Group();
+      scene.add(stage);
+      const boxMaterial = new THREE.MeshStandardMaterial({ color: '#efe1c9', roughness: 0.88, metalness: 0.02 });
+      const lidMaterial = new THREE.MeshStandardMaterial({ color: '#f6ead6', roughness: 0.92, metalness: 0.01 });
+      const signalMaterial = new THREE.MeshStandardMaterial({ color: '#f5d35f', emissive: '#d3742a', emissiveIntensity: 0.25, roughness: 0.55 });
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: '#f2552e' });
+      const box = new THREE.Mesh(new RoundedBoxGeometry(2.55, 1.62, 2.05, 7, 0.22), boxMaterial);
+      box.position.y = 0.05;
+      box.castShadow = true;
+      box.receiveShadow = true;
+      box.userData.kind = 'box';
+      stage.add(box);
+      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.25, 0.22, 1.82, 6, 0.12), lidMaterial);
+      lid.position.set(0, 0.93, 0.03);
+      lid.rotation.z = -0.035;
+      lid.castShadow = true;
+      lid.userData.kind = 'box';
+      stage.add(lid);
+      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 16), signalMaterial);
+      signal.position.set(0, 0.13, 1.07);
+      stage.add(signal);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.018, 12, 32), lineMaterial);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(0, 0.13, 1.075);
+      stage.add(ring);
+
+      const hiddenSignal = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.02), lineMaterial);
+      hiddenSignal.position.set(0, -0.64, 1.08);
+      hiddenSignal.rotation.z = 0.06;
+      stage.add(hiddenSignal);
+
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(3.1, 64), new THREE.MeshStandardMaterial({ color: '#eee5d8', roughness: 1 }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.93;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      let isDown = false;
+      let targetX = 0;
+      let targetY = 0;
+      const onPointerDown = (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const hits = raycaster.intersectObjects([box, lid], false);
+        if (hits.length) {
+          isDown = true;
+          touchRef.current();
+          renderer.domElement.setPointerCapture?.(event.pointerId);
+        }
+      };
+      const onPointerMove = (event) => {
+        if (!isDown) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const nx = (event.clientX - rect.left) / rect.width - 0.5;
+        const ny = (event.clientY - rect.top) / rect.height - 0.5;
+        targetY = THREE.MathUtils.clamp(nx * 0.22, -0.2, 0.2);
+        targetX = THREE.MathUtils.clamp(ny * 0.13, -0.12, 0.12);
+      };
+      const onPointerUp = () => { isDown = false; };
+      renderer.domElement.addEventListener('pointerdown', onPointerDown);
+      renderer.domElement.addEventListener('pointermove', onPointerMove);
+      renderer.domElement.addEventListener('pointerup', onPointerUp);
+      renderer.domElement.addEventListener('pointercancel', onPointerUp);
+
+      let raf = 0;
+      const timer = new THREE.Timer();
+      const animate = () => {
+        timer.update();
+        const elapsed = timer.getElapsed();
+        const currentFeedback = feedbackRef.current;
+        const age = Date.now() - currentFeedback.stamp;
+        const pulse = age >= 0 && age < 1250 ? Math.sin((age / 1250) * Math.PI) : 0;
+        stage.rotation.x = THREE.MathUtils.lerp(stage.rotation.x, targetX, 0.04);
+        stage.rotation.y = THREE.MathUtils.lerp(stage.rotation.y, targetY, 0.04);
+        targetX *= 0.985;
+        targetY *= 0.985;
+        // A calm breathing drift, deliberately not a shake.
+        stage.position.y = Math.sin(elapsed * 0.45) * 0.018;
+        signalMaterial.emissiveIntensity = 0.22 + pulse * 0.85;
+        signal.scale.setScalar(1 + pulse * 0.12);
+        ring.scale.setScalar(1 + pulse * 0.5);
+        ring.material.opacity = 0.34 + pulse * 0.66;
+        ring.material.transparent = true;
+        renderer.render(scene, camera);
+        raf = requestAnimationFrame(animate);
+      };
+      animate();
+
+      const onResize = () => {
+        renderer.setSize(mount.clientWidth, mount.clientHeight);
+        const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1);
+        camera.left = -3.5 * aspect;
+        camera.right = 3.5 * aspect;
+        camera.top = 2.7;
+        camera.bottom = -2.7;
+        camera.updateProjectionMatrix();
+      };
+      window.addEventListener('resize', onResize);
+      onResize();
+      return () => {
+        cancelAnimationFrame(raf);
+        window.removeEventListener('resize', onResize);
+        renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+        renderer.domElement.removeEventListener('pointermove', onPointerMove);
+        renderer.domElement.removeEventListener('pointerup', onPointerUp);
+        renderer.domElement.removeEventListener('pointercancel', onPointerUp);
+        renderer.dispose();
+        mount.removeChild(renderer.domElement);
+      };
+    } catch (error) {
+      console.warn('Three.js scene unavailable', error);
+      setFailed(true);
+      return undefined;
+    }
+  }, []);
+
+  if (failed) {
+    return <div className="scene-fallback"><img src="/assets/unknown-box-home.png" alt="未知盒" /><span>3D 场景不可用，已切换为平面预览</span></div>;
+  }
+  return <div className="scene-host" ref={mountRef} />;
+}
+
+function Badge({ id, title, copy, unlocked }) {
+  return <div className={`badge ${unlocked ? 'unlocked' : 'locked'}`}>
+    <div className="badge-mark">{unlocked ? '✦' : '·'}</div>
+    <div><strong>{title}</strong><small>{unlocked ? copy : '还没有被它留下。'}</small></div>
+  </div>;
+}
+
+function App() {
+  const [state, setState] = useState(loadState);
+  const [tab, setTab] = useState('box');
+  const [feedback, setFeedback] = useState({ type: 'idle', stamp: Date.now() - 2000 });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('它在等你靠近。');
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
+
+  const commitReply = useCallback((type) => {
+    setState(previous => updateFromInteraction(previous, type));
+    setFeedback({ type: 'reply', stamp: Date.now() });
+    setMessage(type === 'wait' ? '你等到了。它终于留下了一点回应。' : '它回应了一下，很轻。');
+    playTone('reply');
+    setBusy(false);
+  }, []);
+
+  const doInteraction = useCallback((type) => {
+    if (busy) return;
+    setBusy(true);
+    setFeedback({ type, stamp: Date.now() });
+    if (type === 'knock') {
+      setMessage('两下敲击已经送进去。不要急着再敲。');
+      playTone('knock');
+      window.setTimeout(() => commitReply('knock'), 1800);
+    } else if (type === 'wait') {
+      setMessage('把手放下。现在轮到它。');
+      window.setTimeout(() => commitReply('wait'), 2400);
+    } else {
+      setMessage('它感到你的手靠近了。');
+      window.setTimeout(() => commitReply('touch'), 550);
+    }
+  }, [busy, commitReply]);
+
+  const touchBox = useCallback(() => doInteraction('touch'), [doInteraction]);
+
+  const sendPostcard = () => {
+    if (busy) return;
+    setState(previous => {
+      let next = { ...previous, social: Math.min(100, previous.social + 10), postcards: previous.postcards + 1, lastEvent: '047 号盒子晚一点回了你。' };
+      next = awardBadge(next, 'postcard');
+      return addEvidence(next, { title: '寄出一段声音', kind: 'relationship', note: '分享的是气息，不是比较。', time: '刚刚' });
+    });
+    playTone('postcard');
+    setMessage('声音明信片已经寄出。对方可能在很晚的时候听见。');
+  };
+
+  const reset = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setState(DEFAULT_STATE);
+    setMessage('重新从一个未知盒开始。');
+  };
+
+  const badges = [
+    ['origin', '未知的开始', '你没有急着给它命名。'],
+    ['waited', '等到它回答', '你把等待当成照料。'],
+    ['three-visits', '第三次来访', '关系开始有自己的节奏。'],
+    ['postcard', '声音寄出去了', '一个盒子把回应寄给另一个盒子。'],
+  ];
+
+  const phoneTitles = {
+    box: ['', '今天的盒子', '它还在。'],
+    evidence: ['', '留下来的', '每一次回应，都会变成一小块证据。'],
+    island: ['', '邻居', '有些回应会绕远路回来。'],
+    profile: ['', '它最近的样子', '不是答案，只是一些靠近过的痕迹。'],
+  };
+  const [sectionLabel, sectionTitle, sectionCopy] = phoneTitles[tab];
+
+  return <div className="app-shell">
+    <header className="app-header">
+      <div><div className="brand">knock knock</div></div>
+      <button className="text-button" onClick={reset} aria-label="重新开始">↺</button>
+    </header>
+
+    <main className="prototype-board">
+      <section className="scene-column" aria-label="独立实体互动场景">
+        <div className="scene-topline"><span>今天的盒子</span><span className="status-pill"><i></i> 在</span></div>
+        <h1>先靠近，<br />再决定要不要敲。</h1>
+        <div className="round-scene-shell">
+          <UnknownBoxScene feedback={feedback} onTouch={touchBox} />
+          <ScribbleLayer />
+          <img className="hand-overlay" src="/assets/hand-reaching.png" alt="一只正在靠近未知盒的手绘手" />
+          <div className="scene-circle-mark"><span>◌</span><small>BOX<br />01</small></div>
+          <div className="scene-caption"><span>touch the box</span><span>轻一点</span></div>
+        </div>
+        <div className="scene-controls">
+          <div className="scene-control-head"><span className="eyebrow">你想怎么靠近？</span><span className="signal-readout"><span className="live-dot"></span><small>{feedback.type === 'reply' ? '有回应' : '很安静'}</small></span></div>
+          <div className="action-grid">
+            <button className="action-button primary-action" disabled={busy} onClick={() => doInteraction('knock')}><b>敲两下</b><span>然后停下来</span></button>
+            <button className="action-button" disabled={busy} onClick={() => doInteraction('wait')}><b>等一会</b><span>让它自己回来</span></button>
+            <button className="action-button" disabled={busy} onClick={() => doInteraction('touch')}><b>摸一下</b><span>只是邀请</span></button>
+          </div>
+          <div className="scene-message"><strong>{message}</strong><small>光、声音、很细小的动作，都是回答。</small></div>
+        </div>
+      </section>
+
+      <section className="phone-column" aria-label="手机 App 原型">
+        <div className="phone-frame">
+          <div className="phone-speaker"></div>
+          <div className="phone-screen">
+            <div className="phone-status"><span>9:41</span><span>◌ ◌ ▰</span></div>
+            <div className="phone-content">
+              <section className="content-head phone-content-head">
+                <div>{sectionLabel && <span className="eyebrow accent">{sectionLabel}</span>}<h2>{sectionTitle}</h2><p>{sectionCopy}</p></div>
+                <div className="signal-readout" aria-label={feedback.type === 'reply' ? '有回应' : '很安静'}><span className="live-dot"></span></div>
+              </section>
+
+              {tab === 'box' && <section className="phone-home">
+                <div className="phone-note"><span className="mini-icon orange">◌</span><div><strong>今天的回应</strong><small>{state.lastEvent}</small></div><span className="note-arrow">↗</span></div>
+                <div className="phone-grid-cards">
+                  <div className="phone-mini-card"><span className="mini-icon yellow">✦</span><b>{state.interactions}</b><small>相处次数</small></div>
+                  <div className="phone-mini-card"><span className="mini-icon blue">⌁</span><b>{state.badges.length}</b><small>已留下的章</small></div>
+                </div>
+                <div className="phone-section-line"><span>今天可以</span><span>不用急</span></div>
+                <div className="care-list">
+                  <div><span className="list-icon">01</span><span><b>接近</b><small>手放在它旁边</small></span><em>完成</em></div>
+                  <div><span className="list-icon">02</span><span><b>留白</b><small>等它自己决定</small></span><em className="pending">现在</em></div>
+                  <div><span className="list-icon">03</span><span><b>记录</b><small>把回应收进证据册</small></span><em>→</em></div>
+                </div>
+                <div className="presence-strip"><img src="/assets/presence-stickers.png" alt="手、耳朵、眼睛和未知盒的手绘贴纸" /></div>
+                <div className="phone-response-meter"><div><span>今天的光</span><b>{Math.max(18, state.expression)}%</b></div><i><em style={{ width: `${Math.max(18, state.expression)}%` }}></em></i></div>
+              </section>}
+
+              {tab === 'evidence' && <section className="phone-evidence"><div className="sticker-wall"><div className="sticker sticker-orange">还没<br />命名</div><div className="sticker sticker-yellow">它等了<br />一会儿</div><div className="sticker sticker-blue">一段<br />声音</div><div className="sticker sticker-pink">第三次<br />来访</div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <Badge key={id} id={id} title={id === 'origin' ? '还没命名' : id === 'waited' ? '它等了一会儿' : id === 'three-visits' ? '第三次来访' : '一段声音'} copy={copy} unlocked={state.badges.includes(id)} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{state.evidence.slice(0, 4).map(item => <div className="log-row" key={item.id}><span className={`log-dot ${item.kind}`}></span><div><strong>{item.title}</strong><small>{item.note}</small></div><time>{item.time}</time></div>)}</div></section>}
+
+              {tab === 'island' && <section className="phone-island"><div className="island-art-card"><img src="/assets/box-island.png" alt="贴纸式盒群岛插画" /></div><div className="island-icon-grid"><button aria-label="听见声音"><span>♪</span><small>听见</small></button><button aria-label="看看来访"><span>↗</span><small>来访</small></button><button aria-label="看看关系"><span>∞</span><small>关系</small></button></div><div className="phone-section-line"><span>邻居的回应</span><span>慢一点也没关系</span></div><div className="postcard"><span>♪　·　·　·　♪</span><small>047 号盒子 / 晚了 2.4 秒</small></div><button className="primary-button" onClick={sendPostcard}>寄出一段声音</button><div className="social-stat"><span>已寄出 <b>{state.postcards}</b> 张</span><span>偶尔共鸣 <b>{state.social}%</b></span></div></section>}
+
+              {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一只慢热的小动物</h3><p>不是答案，只是最近留下的几个猜想。</p><div className="profile-doodle"><img src="/assets/presence-stickers.png" alt="手绘的耳朵、眼睛和小动物线索" /></div><div className="axis"><span>靠近</span><i><em style={{ width: `${Math.max(14, state.bond)}%` }}></em></i><span>绕一圈</span></div><div className="axis"><span>回来</span><i className="yellow"><em style={{ width: `${Math.max(14, 100 - state.patience)}%` }}></em></i><span>等一等</span></div><div className="axis"><span>发亮</span><i className="blue"><em style={{ width: `${Math.max(14, state.expression)}%` }}></em></i><span>很细微</span></div><div className="axis"><span>遇见</span><i className="pink"><em style={{ width: `${Math.max(14, state.social)}%` }}></em></i><span>偶尔</span></div><D3TraitPath values={[state.bond, 100 - state.patience, state.expression, state.social]} /><div className="profile-chip-row"><span>像猫一样绕开</span><span>像兔子一样突然</span><span>小鼠似的细听</span></div><p className="profile-footnote">下一次回应，可能会让它变成另一种样子。</p></section>}
+            </div>
+            <nav className="bottom-nav"><button className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span>◌</span><small>我的盒子</small></button><button className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span>⌁</span><small>盒群岛</small></button><button className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span>▱</span><small>证据册</small></button><button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span>⋯</span><small>性格档案</small></button></nav>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </div>;
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+
