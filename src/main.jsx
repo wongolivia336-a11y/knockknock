@@ -28,7 +28,7 @@ const DEFAULT_STATE = {
   badges: ['origin'],
   interactions: 0,
   postcards: 0,
-  lastEvent: '它在等你靠近。',
+  lastEvent: '盒子里很安静。',
 };
 
 function normalizeState(input) {
@@ -98,6 +98,67 @@ function playTone(type) {
   }
 }
 
+function playKnockPair() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    audioContext ||= new AudioContext();
+    const ctx = audioContext;
+    if (ctx.state === 'suspended') void ctx.resume();
+    [0, 0.17].forEach((delay, index) => {
+      const start = ctx.currentTime + delay;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(index ? 126 : 148, start);
+      osc.frequency.exponentialRampToValueAtTime(index ? 82 : 94, start + 0.11);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(index ? 0.045 : 0.052, start + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.16);
+      osc.addEventListener('ended', () => { osc.disconnect(); gain.disconnect(); });
+    });
+  } catch {
+    // Sound is progressive enhancement; interactions remain available without audio.
+  }
+}
+
+function playListenSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    audioContext ||= new AudioContext();
+    const ctx = audioContext;
+    if (ctx.state === 'suspended') void ctx.resume();
+    [
+      { frequency: 294, delay: 0, duration: 0.42, volume: 0.026 },
+      { frequency: 392, delay: 0.09, duration: 0.5, volume: 0.016 },
+    ].forEach(note => {
+      const start = ctx.currentTime + note.delay;
+      const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note.frequency, start);
+      osc.frequency.exponentialRampToValueAtTime(note.frequency * 0.82, start + note.duration);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(900, start);
+      filter.frequency.exponentialRampToValueAtTime(420, start + note.duration);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(note.volume, start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + note.duration);
+      osc.connect(filter).connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + note.duration + 0.03);
+      osc.addEventListener('ended', () => { osc.disconnect(); filter.disconnect(); gain.disconnect(); });
+    });
+  } catch {
+    // Sound is progressive enhancement; interactions remain available without audio.
+  }
+}
+
 function awardBadge(next, badge) {
   if (next.badges.includes(badge)) return next;
   return { ...next, badges: [...next.badges, badge] };
@@ -125,8 +186,24 @@ function Icon({ name, label }) {
     relation: <><circle cx="7" cy="12" r="3" /><circle cx="17" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="m9.7 10.7 4.6-2.5M9.7 13.3l4.6 2.5" /></>,
     light: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" /></>,
     more: <><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /></>,
+    knock: <><path d="M8 14.5c0-1.7 1.8-2.7 3.5-2.7s4.5 1.1 4.5 3.6-2 4.2-4.5 4.2-4.5-1.8-4.5-4.1" /><path d="M8.5 10 6.8 7M13 9V5M17.5 10 20 7" /></>,
+    wait: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+    touch: <><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="7" opacity=".55" /><circle cx="12" cy="12" r="10" opacity=".25" /></>,
   };
   return <svg className="ui-icon" viewBox="0 0 24 24" aria-label={label} role={label ? 'img' : undefined} aria-hidden={label ? undefined : true} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{shapes[name] || shapes.box}</svg>;
+}
+
+function BrandMark() {
+  return <span className="brand-lockup">
+    <svg className="brand-mark" viewBox="0 0 44 40" role="img" aria-label="KNOCK KNOCK 图形标记">
+      <defs><linearGradient id="brand-glow" x1="7" y1="34" x2="35" y2="5" gradientUnits="userSpaceOnUse"><stop stopColor="#E99A77" /><stop offset=".55" stopColor="#D8B9D9" /><stop offset="1" stopColor="#EBCB8E" /></linearGradient></defs>
+      <path d="M9 9.5h20.5a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-10a6 6 0 0 1 6-6Z" fill="url(#brand-glow)" fillOpacity=".38" stroke="#463934" strokeWidth="1.7" />
+      <path d="M13 22c2.8-4.2 6.2-4.2 9 0s6.2 4.2 9 0" fill="none" stroke="#463934" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M34.5 9.2 37 6.7M38 13.5h3" fill="none" stroke="#E58F6C" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="21.8" cy="22" r="2.1" fill="#FFF9F2" stroke="#463934" strokeWidth="1.1" />
+    </svg>
+    <span className="brand-wordmark"><strong>KNOCK KNOCK</strong><small>THE UNKNOWN BOX</small></span>
+  </span>;
 }
 
 function PhoneStatusIcons() {
@@ -155,19 +232,19 @@ function updateFromInteraction(previous, type) {
       curious: Math.min(100, previous.personality.curious + (type === 'knock' || type === 'touch' ? 2 : 0)),
       shy: Math.max(12, previous.personality.shy + (type === 'touch' ? 1 : 0)),
     },
-    lastEvent: type === 'knock' ? '它收到了两下敲击，正在想要不要回答。' : type === 'wait' ? '你等了一会儿，它终于留下了一点回应。' : type === 'listen' ? '你听见了一点很轻的回声。' : '手指离开后，中心信号亮了一下。',
+    lastEvent: type === 'knock' ? '两下轻敲已经送到，盒子里暂时安静。' : type === 'wait' ? '你等了一会儿，它留下了一点回应。' : type === 'listen' ? '你听见了一声很轻的回响。' : '它朝你的手边靠近了一点。',
   };
   if (type === 'wait') {
     next.patience = Math.min(100, previous.patience + 8);
     next = awardBadge(next, 'waited');
-    next = addEvidence(next, { title: '等到它回答', kind: 'behavior', note: '等待本身也被记录成了一种照料。', time: '刚刚' });
+    next = addEvidence(next, { title: '等到它回答', kind: 'behavior', note: '等待也算作一次陪伴。', time: '刚刚' });
   }
   if (type === 'touch') {
-    next = addEvidence(next, { title: '手指靠近过', kind: 'behavior', note: '触摸不是命令，是一次邀请。', time: '刚刚' });
+    next = addEvidence(next, { title: '手指靠近过', kind: 'behavior', note: '手靠近时，光往这边移了一点。', time: '刚刚' });
   }
   if (type === 'listen') {
     next.patience = Math.min(100, previous.patience + 3);
-    next = addEvidence(next, { title: '听见一段回声', kind: 'relationship', note: '没有说话，但有一个很轻的频率回来。', time: '刚刚' });
+    next = addEvidence(next, { title: '听见一声回响', kind: 'relationship', note: '声音很轻，像是从盒子深处传来。', time: '刚刚' });
   }
   if (next.interactions >= 3) next = awardBadge(next, 'three-visits');
   const progress = deriveProgress(next);
@@ -299,7 +376,7 @@ function CoverCard({ cover, index, active, previewing, onPreviewStart, onPreview
 }
 
 function CoverWall({ activePresetId, previewPresetId, onPreviewStart, onPreviewEnd, onCommit, pulseKey }) {
-  return <section className="cover-wall" aria-label="六张盒群岛封面"><div className="cover-wall-heading"><span className="eyebrow">盒群岛 / SIX QUIET WORLDS</span><h2>每一次回应，都有自己的封面。</h2><p>悬停预览它的光，点击把这一种状态留给盒子。</p></div><div className="cover-grid">{COVER_WALL.map((cover, index) => <CoverCard key={cover.id} cover={cover} index={index} active={activePresetId === cover.id} previewing={previewPresetId === cover.id} onPreviewStart={onPreviewStart} onPreviewEnd={onPreviewEnd} onCommit={onCommit} pulseKey={pulseKey} />)}</div></section>;
+  return <section className="cover-wall" id="light-scenes" aria-label="六种光场"><div className="cover-wall-heading"><span className="eyebrow">六种光场 · 任选一种</span><h2>给盒子选一种此刻的光。</h2><p>悬停可以预览，点击后会缓慢过渡。它们是光的氛围，不是伙伴性格。</p></div><div className="cover-grid">{COVER_WALL.map((cover, index) => <CoverCard key={cover.id} cover={cover} index={index} active={activePresetId === cover.id} previewing={previewPresetId === cover.id} onPreviewStart={onPreviewStart} onPreviewEnd={onPreviewEnd} onCommit={onCommit} pulseKey={pulseKey} />)}</div></section>;
 }
 
 const BOX_VERTEX_SHADER = `
@@ -396,15 +473,15 @@ const BOX_FRAGMENT_SHADER = `
 
     vec3 averageColor = weightedField / max(totalWeight, 0.0001);
     float averageLuma = dot(averageColor, vec3(0.299, 0.587, 0.114));
-    vec3 fieldColor = mix(vec3(averageLuma), averageColor, 0.94);
-    fieldColor = mix(fieldColor, dominantColor, clamp(0.16 + dominantContribution * 0.42, 0.16, 0.58));
+    vec3 fieldColor = clamp(mix(vec3(averageLuma), averageColor, 1.12), 0.0, 1.0);
+    fieldColor = mix(fieldColor, dominantColor, clamp(0.3 + dominantContribution * 0.48, 0.3, 0.76));
     float fieldAmount = min(0.98, 1.0 - exp(-totalWeight * (2.2 + uIntensity * 0.9)));
     vec3 interactionDelta = warpedPosition - uInteractionPosition;
     float interactionHalo = exp(-dot(interactionDelta, interactionDelta) / 1.12);
     float interactionCore = exp(-dot(interactionDelta, interactionDelta) / 0.22);
     float interactionAmount = (interactionHalo * 0.72 + interactionCore * 0.28) * uInteractionStrength;
     fieldColor = mix(fieldColor, uInteractionColor, clamp(interactionAmount * 0.7, 0.0, 0.8));
-    fieldAmount = min(0.76, fieldAmount + interactionAmount * 0.3);
+    fieldAmount = min(0.84, fieldAmount + interactionAmount * 0.32);
 
     vec3 viewDirection = normalize(vViewPosition);
     float edgeLight = pow(1.0 - max(dot(normalize(vLocalNormal), normalize(vec3(-0.1, 0.48, 0.86))), 0.0), 1.65);
@@ -413,9 +490,9 @@ const BOX_FRAGMENT_SHADER = `
     vec3 surfaceColor = atmosphere * (diffuse * 0.92 + (lowFrequency - 0.5) * 0.055 + edgeLight * 0.035);
     float fieldBlend = clamp(fieldAmount * 0.9, 0.0, 0.9);
     vec3 shell = vec3(0.86, 0.82, 0.76) * (0.88 + diffuse * 0.12);
-    float opticalMix = clamp(0.36 + fieldAmount * 0.54, 0.36, 0.9);
+    float opticalMix = clamp(0.5 + fieldAmount * 0.46, 0.5, 0.96);
     vec3 color = mix(surfaceColor * 1.08, fieldColor, opticalMix);
-    color = mix(color, shell, 0.12 + edgeLight * 0.08);
+    color = mix(color, shell, 0.055 + edgeLight * 0.055);
     float sideFace = smoothstep(0.24, 0.92, max(n.x, 0.0));
     float topFace = smoothstep(0.24, 0.92, max(n.y, 0.0));
     color *= mix(vec3(1.0), vec3(0.84, 0.85, 0.86), sideFace);
@@ -525,7 +602,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-3.8, 3.8, 3.3, -3.3, 0.1, 100);
       camera.zoom = 1;
-      camera.position.set(4.15, 1.72, 8.6);
+      camera.position.set(4.6, 1.62, 8.2);
       camera.lookAt(0, 0.16, 0);
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -558,7 +635,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       };
       const boxOffset = new THREE.Vector3(0, 0, 0);
       const boxMaterial = createBoxMaterial('#F1EAE1', boxOffset, lightField);
-      const box = new THREE.Mesh(new RoundedBoxGeometry(3.65, 3.25, 1.4, 16, 0.38), boxMaterial);
+      const box = new THREE.Mesh(new RoundedBoxGeometry(3.45, 3.35, 2.65, 18, 0.4), boxMaterial);
       box.position.set(0, 0.04, 0);
       box.userData.kind = 'box';
       stage.add(box);
@@ -716,7 +793,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1);
         // Keep world units square on screen; deriving both spans from aspect prevents
         // the orthographic projection from stretching the box across wide desktop stages.
-        const viewHeight = aspect > 1.7 ? 4.05 : aspect < 1.45 ? 4.9 : 4.4;
+        const viewHeight = aspect > 1.7 ? 4.5 : aspect < 1.45 ? 4.9 : 4.4;
         const viewWidth = viewHeight * Math.max(aspect, 0.1);
         camera.left = -viewWidth * 0.5;
         camera.right = viewWidth * 0.5;
@@ -796,7 +873,7 @@ function SignalWave({ active = false }) {
 function MiniBoxArt({ preset }) {
   const colorA = preset.colors.blobs[0];
   const colorB = preset.colors.blobs[1];
-  return <svg className="mini-box-art" viewBox="0 0 220 82" role="img" aria-label="盒子的渐变碎片"><defs><linearGradient id="mini-box-gradient" x1="0" x2="1"><stop offset="0" stopColor={colorA} /><stop offset="1" stopColor={colorB} /></linearGradient></defs><path d="M45 27 112 13l65 18-67 17Z" fill="#fffaf1" stroke="#302c2b" strokeWidth="1.2" /><path d="M45 27v31l65 15V48Z" fill="url(#mini-box-gradient)" stroke="#302c2b" strokeWidth="1.2" /><path d="m177 31-67 17v25l67-18Z" fill={preset.colors.blobs[2]} opacity=".72" stroke="#302c2b" strokeWidth="1.2" /><path d="m58 31 52-11 53 14-55 14Z" fill="#fffdf8" opacity=".62" /><circle cx="127" cy="47" r="10" fill={preset.colors.blobs[3]} opacity=".78" /></svg>;
+  return <svg className="mini-box-art" viewBox="0 0 220 82" role="img" aria-label="一体成型的柔光盒子"><defs><linearGradient id="mini-box-gradient" x1=".12" y1=".2" x2=".94" y2=".9"><stop offset="0" stopColor={colorA} stopOpacity=".8" /><stop offset=".55" stopColor={colorB} stopOpacity=".72" /><stop offset="1" stopColor={preset.colors.blobs[2]} stopOpacity=".62" /></linearGradient><linearGradient id="mini-box-face" x1=".1" y1="0" x2=".9" y2="1"><stop stopColor="#fffaf3" stopOpacity=".82" /><stop offset="1" stopColor="#eadfd5" stopOpacity=".52" /></linearGradient></defs><path d="M57 23q0-4 4-5l49-10q3-.6 6 0l52 13q4 1 4 5v34q0 4-4 5l-49 10q-3 .6-6 0L61 62q-4-1-4-5Z" fill="url(#mini-box-gradient)" stroke="#8f837b" strokeOpacity=".45" strokeWidth="1" /><path d="m61 20 50-10q3-.6 6 0l52 13-54 12Z" fill="url(#mini-box-face)" opacity=".8" /><path d="m115 35 54-12v34q0 4-4 5l-50 10Z" fill={preset.colors.blobs[2]} opacity=".24" /><path d="M69 28c17-6 27-7 42-3 13 4 24 3 38-3" fill="none" stroke="#fffaf3" strokeOpacity=".42" strokeWidth="4" strokeLinecap="round" /></svg>;
 }
 
 function IslandMap() {
@@ -821,7 +898,8 @@ function App() {
   const [personalityOpen, setPersonalityOpen] = useState(null);
   const [unlockedBadge, setUnlockedBadge] = useState(null);
   const [evidenceFilter, setEvidenceFilter] = useState('all');
-  const [message, setMessage] = useState('它在等你靠近。');
+  const [message, setMessage] = useState('盒子里很安静。你可以从一次轻敲开始。');
+  const soundEnabled = state.soundEnabled !== false;
   const responseTimerRef = useRef(null);
   const badgeCountRef = useRef(state.badges.length);
   const phoneContentRef = useRef(null);
@@ -877,11 +955,11 @@ function App() {
     setState(previous => updateFromInteraction(previous, type));
     setSkinPulse(Date.now());
     setFeedback({ type: 'reply', stamp: Date.now() });
-    setMessage(type === 'wait' ? '你等到了。它终于留下了一点回应。' : '它回应了一下，很轻。');
-    playTone('reply');
+    setMessage(type === 'wait' ? '你等到了。它留下一点轻轻的回应。' : '它回应了一下，很轻。');
+    if (soundEnabled) playTone('reply');
     responseTimerRef.current = null;
     setBusy(false);
-  }, []);
+  }, [soundEnabled]);
 
   const doInteraction = useCallback((type) => {
     if (busy) return;
@@ -893,21 +971,21 @@ function App() {
       lastInteractionAt: Date.now(),
     }));
     if (type === 'knock') {
-      setMessage('两下敲击已经送进去。不要急着再敲。');
-      playTone('knock');
+      setMessage('两下轻敲，已经送进盒子里了。');
+      if (soundEnabled) playKnockPair();
       responseTimerRef.current = window.setTimeout(() => commitReply('knock'), 1800);
     } else if (type === 'wait') {
-      setMessage('把手放下。现在轮到它。');
+      setMessage('这一次，换它决定什么时候回答。');
       responseTimerRef.current = window.setTimeout(() => commitReply('wait'), 2400);
     } else if (type === 'touch') {
-      setMessage('它感到你的手靠近了。');
+      setMessage('它似乎朝你的手靠近了一点。');
       responseTimerRef.current = window.setTimeout(() => commitReply('touch'), 550);
     } else {
-      setMessage('先不要看，听一会儿。');
-      playTone('reply');
+      setMessage('请安静片刻，听听它的回声。');
+      if (soundEnabled) playListenSound();
       responseTimerRef.current = window.setTimeout(() => commitReply('listen'), 1550);
     }
-  }, [busy, commitReply]);
+  }, [busy, commitReply, soundEnabled]);
 
   const touchBox = useCallback(() => doInteraction('touch'), [doInteraction]);
 
@@ -921,7 +999,7 @@ function App() {
       next.currentCycle = { ...previous.currentCycle, progress, evidenceIds: next.evidence.slice(0, 8).map(item => item.id), completed: progress >= 100 };
       return next;
     });
-    playTone('postcard');
+    if (soundEnabled) playTone('postcard');
     setMessage('声音明信片已经寄出。对方可能在很晚的时候听见。');
   };
 
@@ -964,25 +1042,31 @@ function App() {
   const hoveredAction = COPY.actions[hoverAction];
   const presenceCopy = COPY.state[state.presenceState] || COPY.state.idle;
   const hoverCopy = hoveredAction ? [hoveredAction.label, hoveredAction.hover] : [presenceCopy.eyebrow, presenceCopy.title];
+  const statusLabel = busy
+    ? ({ knock: '收到敲击', wait: '正在等待', touch: '感到靠近', listen: '正在聆听' }[feedback.type] || '正在回应')
+    : state.presenceState === 'responding' ? '已留下回应' : '此刻安静';
+  const todayNote = state.interactions > 0 ? state.lastEvent : '还没有新的回应。可以轻敲两下，或安静等一会。';
   const visibleEvidence = state.evidence.filter(item => evidenceFilter === 'all' || (evidenceFilter === 'sound' ? item.kind === 'relationship' : evidenceFilter === 'light' ? item.kind === 'origin' : item.kind === 'behavior'));
 
   return <div className="app-shell">
     <header className="app-header">
-      <div><div className="brand">knock knock</div></div>
-       <button className="text-button top-menu-button" onClick={() => { setDrawerOpen(true); setSettingsOpen(true); }} aria-label="打开设置菜单"><Icon name="more" /></button>
+      <a className="brand" href="#experience" aria-label="KNOCK KNOCK 首页"><BrandMark /></a>
+      <nav className="site-nav" aria-label="网页导航"><a href="#experience">体验</a><a href="#light-scenes">六种光场</a><a href="#product-idea">产品理念</a></nav>
+      <button className="text-button top-menu-button" onClick={() => { setDrawerOpen(true); setSettingsOpen(true); }}><Icon name="more" /><span>设置</span></button>
     </header>
 
-    <main className="prototype-board">
+    <main className="prototype-board" id="experience">
       <section className="scene-column" aria-label="独立实体互动场景">
-        <div className="scene-topline"><span>{COPY.hero.label}</span><span className="status-pill"><i></i> 在</span></div>
+        <div className="scene-topline"><span>{COPY.hero.label}</span><span className={`status-pill ${busy ? 'is-active' : ''}`}><i aria-hidden="true"></i>{statusLabel}</span></div>
         <h1>{COPY.hero.title[0]}<br />{COPY.hero.title[1]}</h1>
         <p className="scene-intro">{COPY.hero.intro[0]}<br />{COPY.hero.intro[1]}</p>
-        <div className="scene-stage">
+        <div className={`scene-stage ${feedback.type === 'knock' ? 'is-knocking' : ''} ${feedback.type === 'listen' ? 'is-listening' : ''}`}>
           <UnknownBoxScene feedback={feedback} onTouch={touchBox} activePresetId={activePresetId} previewPresetId={previewPresetId} />
+          <img className="knock-hand-sticker" src="/assets/stickers/knock-hand-sticker.png" alt="" aria-hidden="true" />
         </div>
         <div className="scene-controls">
-          <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><span className="signal-readout"><span className="live-dot"></span><small>{feedback.type === 'reply' || state.presenceState === 'responding' ? '有回应' : '很安静'}</small></span></div>
-          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions"><button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)}>敲两下</button><button type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)}>等一会</button><button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)}>轻轻碰</button><button type="button" disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)}>听听看</button></div></div>
+          <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><small className="scene-touch-hint">也可轻触盒面互动</small></div>
+          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions"><button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)}><Icon name="knock" /><span>敲两下</span></button><button type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)}><Icon name="wait" /><span>等一会</span></button><button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)}><Icon name="touch" /><span>轻轻碰</span></button><button type="button" disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)}><Icon name="sound" /><span>听听看</span></button></div></div>
         </div>
       </section>
 
@@ -994,37 +1078,24 @@ function App() {
             <div ref={phoneContentRef} className="phone-content">
               <section className="content-head phone-content-head">
                 <div>{sectionLabel && <span className="eyebrow accent">{sectionLabel}</span>}<h2>{sectionTitle}</h2><p>{sectionCopy}</p></div>
-                <div className="phone-head-tools"><div className="signal-readout" aria-label={feedback.type === 'reply' ? '有回应' : '很安静'}><span className="live-dot"></span></div><button className="phone-menu-button" type="button" onClick={() => setDrawerOpen(true)} aria-label="打开贴纸抽屉"><i></i><i></i><i></i></button></div>
+                <div className="phone-head-tools"><span className={`presence-state-chip ${busy ? 'is-active' : ''}`}><i aria-hidden="true"></i>{statusLabel}</span><button className="phone-menu-button" type="button" onClick={() => setDrawerOpen(true)} aria-label="打开贴纸抽屉"><i></i><i></i><i></i></button></div>
               </section>
 
               {tab === 'box' && <section className="phone-home">
-                 <div className="today-note"><span className="tape-strip"></span><span className="eyebrow">今日便签</span><strong>今天，它好像<br />比昨天更愿意靠近。</strong><small>记录一段不确定的靠近</small><div className="note-sun"><StickerGlyph kind="warm" /></div><div className="note-scribble"></div></div>
-                 <div className="phone-signal-row"><span className="signal-orb" style={{ '--orb-a': activePreset.colors.blobs[0], '--orb-b': activePreset.colors.blobs[1], '--orb-c': activePreset.colors.blobs[2] }}><Icon name="light" /></span><div><strong>今天的回应</strong><small>{state.lastEvent}</small></div><span className="note-arrow">↗</span></div>
-                  <div className="phone-field-chip"><span className="field-chip-orb" style={{ background: `linear-gradient(135deg, ${activePreset.colors.blobs[0]}, ${activePreset.colors.blobs[1]} 48%, ${activePreset.colors.blobs[2]})` }}></span><div><small>当前光场</small><strong>{activePreset.title[0]}</strong></div><em>正在流动</em></div>
-                <div className="phone-inline-stats">
-                   <span><b>{state.interactions}</b><small>相处次数</small></span><span><b>{state.badges.length}</b><small>留下的章</small></span><span><b>{state.currentCycle.evidenceIds.length}</b><small>留下的线索</small></span>
-                </div>
-                <div className="phone-section-line"><span>今天可以</span><span>不用急</span></div>
-                <div className="care-list">
-                  <div><span className="list-icon">01</span><span><b>接近</b><small>手放在它旁边</small></span><em>完成</em></div>
-                  <div><span className="list-icon">02</span><span><b>留白</b><small>等它自己决定</small></span><em className="pending">现在</em></div>
-                  <div><span className="list-icon">03</span><span><b>记录</b><small>把回应收进证据册</small></span><em>→</em></div>
-                </div>
-                 <div className="box-art-strip"><MiniBoxArt preset={getLightPreset(activePresetId)} /></div>
-                 <div className="sticker-asset-rail" aria-label="今天留下的贴纸"><div className="coded-sticker-card"><StickerBadge id="origin" compact /><span>有一点在场</span></div><div className="coded-sticker-card"><StickerBadge id="waited" compact /><span>它回来了</span></div><div className="coded-sticker-card"><StickerBadge id="three-visits" compact /><span>微小靠近</span></div></div>
-                <div className="phone-progress-card"><div className="progress-card-head"><span>探索进度</span><b>{state.currentCycle.progress}%</b></div><div className="progress-track"><i style={{ width: `${state.currentCycle.progress}%` }}></i></div><p>多了解一点点，慢慢看见它的习惯。</p><button type="button" className="text-link-button" onClick={() => setProgressOpen(true)}>查看这一轮的路径 <span>↗</span></button></div>
+                 <div className="today-note"><span className="tape-strip"></span><span className="eyebrow">今天留给你的便签</span><strong>{todayNote}</strong><small>每次回应，都会成为一条线索。</small><img className="note-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="未知陪伴者的抽象渐变贴纸" /><span className="note-preset-chip"><i style={{ background: `linear-gradient(135deg, ${activePreset.colors.blobs[0]}, ${activePreset.colors.blobs[1]}, ${activePreset.colors.blobs[2]})` }}></i>{activePreset.subtitle}</span></div>
+                <div className="phone-progress-card"><div className="progress-card-head"><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><div className="progress-track"><i style={{ width: `${state.currentCycle.progress}%` }}></i></div><p>进度记录相处阶段，不代表它的身份。</p><button type="button" className="text-link-button" onClick={() => setProgressOpen(true)}>查看探索阶段 <span>↗</span></button></div>
                 <div className="phone-personality-snapshot"><div className="phone-section-line"><span>猜猜它的性格</span><span>只是目前的猜测</span></div><div className="personality-chip-grid">{PERSONALITY_COPY.slice(0, 3).map(([id, title]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' ? 'curious' : 'night'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div></div>
-                <button type="button" className="clue-button" onClick={() => setTab('evidence')}><span>查看今天的线索</span><b>↗</b></button>
+                <div className="phone-recent-evidence"><div className="phone-section-line"><span>最近的线索</span><span>{state.evidence.length} 条</span></div>{state.evidence.slice(0, 2).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}<button type="button" className="text-link-button" onClick={() => setTab('evidence')}>查看全部记录 <span>↗</span></button></div>
               </section>}
 
                {tab === 'evidence' && <section className="phone-evidence"><div className="evidence-filter-row" role="tablist" aria-label="证据筛选"><button type="button" className={evidenceFilter === 'all' ? 'active' : ''} onClick={() => setEvidenceFilter('all')}>全部</button><button type="button" className={evidenceFilter === 'light' ? 'active' : ''} onClick={() => setEvidenceFilter('light')}>光线</button><button type="button" className={evidenceFilter === 'sound' ? 'active' : ''} onClick={() => setEvidenceFilter('sound')}>声音</button><button type="button" className={evidenceFilter === 'touch' ? 'active' : ''} onClick={() => setEvidenceFilter('touch')}>靠近</button></div><div className="sticker-wall"><div className="sticker sticker-orange"><StickerGlyph kind="curious" /><span>还没<br />命名</span></div><div className="sticker sticker-yellow"><StickerGlyph kind="patient" /><span>它等了<br />一会儿</span></div><div className="sticker sticker-blue"><StickerGlyph kind="night" /><span>一段<br />声音</span></div><div className="sticker sticker-pink"><StickerGlyph kind="warm" /><span>第三次<br />来访</span></div></div><div className="evidence-scrap-row" aria-label="证据碎片"><div className="evidence-scrap signal-scrap"><span>今日信号</span><SignalWave active={feedback.type === 'reply'} /><small>02:36 / 有一点回来</small></div><div className="evidence-scrap gradient-scrap"><MiniBoxArt preset={getLightPreset(activePresetId)} /><small>光场碎片 / {getLightPreset(activePresetId).title[0]}</small></div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.filter(id => BADGE_DETAILS[id]).length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} onOpen={setSelectedBadge} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{visibleEvidence.slice(0, 4).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}{visibleEvidence.length === 0 && <p className="empty-evidence">这一类线索还没有留下来。</p>}</div></section>}
 
                {tab === 'island' && <section className="phone-island"><div className="island-art-card"><IslandMap /></div><div className="island-icon-grid"><button aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div><div className="phone-section-line"><span>邻居的回应</span><span>慢一点也没关系</span></div><div className="postcard"><SignalWave active /><small>047 号盒子 / 晚了 2.4 秒</small></div><button className="primary-button" onClick={sendPostcard}>寄出一段声音</button><div className="social-stat"><span>已寄出 <b>{state.postcards}</b> 张</span><span>偶尔共鸣 <b>{state.social}%</b></span></div></section>}
 
-               {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一只慢热的未知物</h3><p>不是答案，只是最近留下的几个猜想。</p><div className="profile-doodle"><div className="profile-orbit orbit-a"></div><div className="profile-orbit orbit-b"></div><StickerGlyph kind="curious" /><span>靠近 / 退开 / 再回来</span></div><div className="profile-progress-card"><div><span>探索进度</span><b>{state.currentCycle.progress}%</b></div><i><em style={{ width: `${state.currentCycle.progress}%` }}></em></i><small>完成一轮也不会揭晓它是什么，只会留下更多认识。</small></div><div className="phone-section-line"><span>目前推测</span><span>会继续变化</span></div><div className="personality-chip-grid profile-personality-grid">{PERSONALITY_COPY.map(([id, title, copy]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' || id === 'curious' ? 'curious' : id === 'nocturnal' ? 'night' : 'patient'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div><div className="phone-section-line"><span>伙伴纪念章</span><span>{state.badges.filter(id => state.badges.includes(id)).length} / {badges.length}</span></div><div className="badge-gallery">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} compact onOpen={setSelectedBadge} />)}</div><button type="button" className="clue-button" onClick={() => setProgressOpen(true)}><span>查看探索阶段</span><b>↗</b></button><p className="profile-footnote">下一次回应，可能会让它变成另一种样子。</p></section>}
+               {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一位慢热的伙伴</h3><p>这是根据目前线索形成的暂时理解。</p><div className="profile-doodle"><img className="profile-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="抽象渐变形态，代表尚未命名的伙伴" /><span>柔和 / 慢热 / 再靠近</span></div><div className="profile-progress-card"><div><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><i><em style={{ width: `${state.currentCycle.progress}%` }}></em></i><small>进度代表相处阶段，不代表它的身份。</small></div><div className="phone-section-line"><span>目前推测</span><span>可能继续变化</span></div><div className="personality-chip-grid profile-personality-grid">{PERSONALITY_COPY.map(([id, title, copy]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' || id === 'curious' ? 'curious' : id === 'nocturnal' ? 'night' : 'patient'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div><div className="phone-section-line"><span>伙伴纪念章</span><span>{state.badges.filter(id => state.badges.includes(id)).length} / {badges.length}</span></div><div className="badge-gallery">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} compact onOpen={setSelectedBadge} />)}</div><button type="button" className="clue-button" onClick={() => setProgressOpen(true)}><span>查看探索阶段</span><b>↗</b></button><p className="profile-footnote">下一次回应，也许会让这份理解变得不同。</p></section>}
             </div>
-            <nav className="bottom-nav"><button className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>我的盒子</small></button><button className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>证据册</small></button><button className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span><Icon name="island" /></span><small>盒群岛</small></button><button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格档案</small></button></nav>
-             {drawerOpen && <div className="phone-overlay" role="presentation" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }}><aside className={`phone-drawer ${settingsOpen ? 'is-settings' : ''}`} role="dialog" aria-modal="true" aria-label={settingsOpen ? '设置菜单' : '贴纸抽屉'} onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }} aria-label="关闭菜单">×</button>{settingsOpen ? <>{resetConfirm ? <><span className="eyebrow accent">重新开始</span><h3>要重新开始吗？</h3><p>这会清除本地的证据、徽章和当前光场选择。这个动作不能撤回。</p><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => setResetConfirm(false)}>先不要</button><button className="drawer-action danger" type="button" onClick={reset}>清除并重新开始</button></div></> : <><span className="eyebrow accent">设置菜单</span><h3>留一点空间</h3><p>把声音、贴纸和重新开始都放在这里。</p><div className="settings-list"><button type="button"><span>声音回应</span><b>开启</b></button><button type="button" onClick={() => { setSettingsOpen(false); setTab('profile'); }}><span>我的性格档案</span><b>查看 ↗</b></button><button type="button" onClick={() => setResetConfirm(true)}><span>重新开始</span><b>需要确认</b></button></div></>} </> : <><span className="eyebrow accent">贴纸抽屉</span><h3>今天留下的</h3><p>一些还不能解释的东西，先放在这里。</p><div className="drawer-sticker-stack"><StickerBadge id="origin" compact /><StickerBadge id="waited" compact /><StickerBadge id="postcard" compact /><StickerBadge id="signal" compact /></div><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => { setDrawerOpen(false); setTab('evidence'); }}>收进证据册 <span>↗</span></button><button className="drawer-action" type="button" onClick={() => setSettingsOpen(true)}>设置 <span>⋯</span></button></div></>}</aside></div>}
+            <nav className="bottom-nav" aria-label="App 主导航"><button aria-current={tab === 'box' ? 'page' : undefined} className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>今天</small></button><button aria-current={tab === 'evidence' ? 'page' : undefined} className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>记录</small></button><button aria-current={tab === 'island' ? 'page' : undefined} className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span><Icon name="island" /></span><small>群岛</small></button><button aria-current={tab === 'profile' ? 'page' : undefined} className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格</small></button></nav>
+            {drawerOpen && <div className="phone-overlay" role="presentation" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }}><aside className={`phone-drawer ${settingsOpen ? 'is-settings' : ''}`} role="dialog" aria-modal="true" aria-label={settingsOpen ? '设置菜单' : '贴纸抽屉'} onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }} aria-label="关闭菜单">×</button>{settingsOpen ? <>{resetConfirm ? <><span className="eyebrow accent">重新开始</span><h3>要重新开始吗？</h3><p>这会清除本地的证据、徽章和当前光场选择。这个动作不能撤回。</p><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => setResetConfirm(false)}>先不要</button><button className="drawer-action danger" type="button" onClick={reset}>清除并重新开始</button></div></> : <><span className="eyebrow accent">设置</span><h3>按你的节奏来</h3><p>你可以关闭声音，或重新开始这一轮。</p><div className="settings-list"><button type="button" onClick={() => setState(previous => ({ ...previous, soundEnabled: previous.soundEnabled === false }))}><span>声音回应</span><b>{soundEnabled ? '开启' : '关闭'}</b></button><button type="button" onClick={() => { setSettingsOpen(false); setTab('profile'); }}><span>性格档案</span><b>查看 ↗</b></button><button type="button" onClick={() => setResetConfirm(true)}><span>重新开始</span><b>需要确认</b></button></div></>} </> : <><span className="eyebrow accent">贴纸抽屉</span><h3>今天留下的</h3><p>一些还不能解释的东西，先放在这里。</p><div className="drawer-sticker-stack"><StickerBadge id="origin" compact /><StickerBadge id="waited" compact /><StickerBadge id="postcard" compact /><StickerBadge id="signal" compact /></div><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => { setDrawerOpen(false); setTab('evidence'); }}>收进证据册 <span>↗</span></button><button className="drawer-action" type="button" onClick={() => setSettingsOpen(true)}>设置 <span>⋯</span></button></div></>}</aside></div>}
              {selectedEvidence && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setSelectedEvidence(null)}><section className="phone-sheet" role="dialog" aria-modal="true" aria-label="证据详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedEvidence(null)} aria-label="关闭证据详情">×</button><span className={`log-dot ${selectedEvidence.kind}`}></span><span className="eyebrow accent">证据 · {selectedEvidence.time}</span><h3>{selectedEvidence.title}</h3><p>{selectedEvidence.note}</p><div className="sheet-mark"><Icon name={selectedEvidence.kind === 'relationship' ? 'sound' : selectedEvidence.kind === 'touch' ? 'light' : 'evidence'} /></div><small>这不是结论，只是它曾经靠近过的地方。</small></section></div>}
              {selectedBadge && <div className="phone-overlay badge-overlay" role="presentation" onClick={() => setSelectedBadge(null)}><section className="phone-sheet badge-detail-sheet" role="dialog" aria-modal="true" aria-label="徽章详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedBadge(null)} aria-label="关闭徽章详情">×</button><StickerBadge id={selectedBadge} compact unlocked={state.badges.includes(selectedBadge)} /><span className="eyebrow accent">徽章 · {BADGE_DETAILS[selectedBadge]?.label || '未知'}</span><h3>{BADGE_DETAILS[selectedBadge]?.title}</h3><p>{state.badges.includes(selectedBadge) ? BADGE_DETAILS[selectedBadge]?.copy : '这枚贴纸还在远处，等一段足够具体的观察。'}</p><small>{state.badges.includes(selectedBadge) ? '已经收进你的收藏。' : '证据足够时，它会自己出现。'}</small></section></div>}
              {unlockedBadge && <div className="phone-overlay badge-overlay" role="presentation" onClick={() => setUnlockedBadge(null)}><section className="phone-sheet badge-unlock-sheet" role="dialog" aria-modal="true" aria-label="徽章解锁" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setUnlockedBadge(null)} aria-label="关闭解锁提示">×</button><span className="eyebrow accent">新的纪念章</span><StickerBadge id={unlockedBadge} compact /><h3>{BADGE_DETAILS[unlockedBadge]?.title}</h3><p>你注意到了一段具体的关系变化，为这段相处留下一枚纪念章。</p><button className="drawer-action" type="button" onClick={() => setUnlockedBadge(null)}>收好它 <span>↗</span></button></section></div>}
@@ -1036,6 +1107,11 @@ function App() {
     </main>
 
     <CoverWall activePresetId={activePresetId} previewPresetId={previewPresetId} onPreviewStart={setPreviewPresetId} onPreviewEnd={() => setPreviewPresetId(null)} onCommit={commitPreset} pulseKey={skinPulse} />
+    <section className="product-idea" id="product-idea">
+      <span className="eyebrow">KNOCK KNOCK · 产品理念</span>
+      <div className="product-idea-copy"><h2>不必揭晓，<br />也能慢慢认识。</h2><p>盒子里是什么，始终没有答案。你可以敲击、触摸、聆听或等待；它留下的光、声音与停顿，会成为线索。久而久之，你会形成自己的性格猜测——不是物种鉴定，而是一段相处的记录。</p></div>
+      <div className="idea-sequence" aria-label="互动、回应、线索、理解"><span>互动</span><i>→</i><span>回应</span><i>→</i><span>线索</span><i>→</i><span>理解</span></div>
+    </section>
 
   </div>;
 }
