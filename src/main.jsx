@@ -283,10 +283,13 @@ function CoverWall() {
 const BOX_VERTEX_SHADER = `
   varying vec3 vLocalPosition;
   varying vec3 vLocalNormal;
+  varying vec3 vViewPosition;
   void main() {
     vLocalPosition = position;
     vLocalNormal = normal;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -viewPosition.xyz;
+    gl_Position = projectionMatrix * viewPosition;
   }
 `;
 
@@ -301,6 +304,7 @@ const BOX_FRAGMENT_SHADER = `
   uniform float uLightRadii[3];
   varying vec3 vLocalPosition;
   varying vec3 vLocalNormal;
+  varying vec3 vViewPosition;
 
   float hash(vec3 p) {
     p = fract(p * 0.3183099 + vec3(0.1, 0.7, 0.3));
@@ -314,27 +318,46 @@ const BOX_FRAGMENT_SHADER = `
     return mix(mix(mix(hash(i), hash(i + vec3(1.0, 0.0, 0.0)), f.x), mix(hash(i + vec3(0.0, 1.0, 0.0)), hash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(hash(i + vec3(0.0, 0.0, 1.0)), hash(i + vec3(1.0, 0.0, 1.0)), f.x), mix(hash(i + vec3(0.0, 1.0, 1.0)), hash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
   }
 
+  float fineNoise(vec3 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    for (int i = 0; i < 4; i++) {
+      value += softNoise(p) * amplitude;
+      p = p * 2.03 + vec3(4.1, 1.7, 3.6);
+      amplitude *= 0.5;
+    }
+    return value;
+  }
+
   void main() {
     vec3 p = vLocalPosition + uObjectOffset;
     vec3 n = normalize(vLocalNormal);
     vec3 key = normalize(vec3(-0.42, 0.86, 0.66));
-    float diffuse = 0.72 + max(dot(n, key), 0.0) * 0.22;
+    float diffuse = 0.76 + max(dot(n, key), 0.0) * 0.2;
+    float lowFrequency = fineNoise(p * 1.18 + vec3(uTime * 0.018, -uTime * 0.011, uTime * 0.014));
+    float microGrain = fineNoise(p * 13.0 + vec3(uTime * 0.028, uTime * 0.019, -uTime * 0.022));
+    float surfaceWarp = (fineNoise(p * 1.7 + vec3(1.2, -0.7, 0.4)) - 0.5) * 0.16;
+    vec3 warpedPosition = p + vec3(surfaceWarp, surfaceWarp * 0.55, -surfaceWarp * 0.72);
     vec3 field = vec3(0.0);
 
     for (int i = 0; i < 3; i++) {
-      vec3 delta = p - uLightPositions[i];
+      vec3 delta = warpedPosition - uLightPositions[i];
       float distanceSquared = dot(delta, delta);
       float radius = uLightRadii[i];
       float halo = exp(-distanceSquared / (2.0 * radius * radius));
       float coreRadius = radius * 0.42;
       float core = exp(-distanceSquared / (2.0 * coreRadius * coreRadius));
       float wrap = 0.62 + 0.38 * max(dot(normalize(-delta + vec3(0.0001)), n), 0.0);
-      field += uLightColors[i] * (halo * 0.72 + core * 0.28) * uLightIntensities[i] * wrap;
+      field += uLightColors[i] * (halo * 0.78 + core * 0.22) * uLightIntensities[i] * wrap;
     }
 
-    float grain = (softNoise(p * 8.0 + uTime * 0.035) - 0.5) * 0.014;
-    vec3 color = uBaseColor * diffuse + field * 0.62 + vec3(grain);
-    color += field * 0.055 * softNoise(p * 3.0 + uTime * 0.08);
+    vec3 viewDirection = normalize(vViewPosition);
+    float edgeLight = pow(1.0 - max(dot(normalize(vLocalNormal), normalize(vec3(-0.1, 0.48, 0.86))), 0.0), 1.65);
+    float grain = (microGrain - 0.5) * 0.018;
+    vec3 surfaceColor = uBaseColor * (diffuse * 0.92 + (lowFrequency - 0.5) * 0.055 + edgeLight * 0.035);
+    vec3 color = surfaceColor + field * (0.47 + lowFrequency * 0.07) + vec3(grain);
+    color += field * 0.035 * fineNoise(p * 3.4 + uTime * 0.06);
+    color += vec3(0.012, 0.01, 0.008) * (1.0 - max(dot(viewDirection, normalize(vLocalNormal)), 0.0));
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -371,8 +394,9 @@ function UnknownBoxScene({ feedback, onTouch }) {
     try {
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-3.6, 3.6, 2.7, -2.7, 0.1, 100);
-      camera.position.set(3.65, 2.45, 6.4);
-      camera.lookAt(0, 0.04, 0);
+      camera.zoom = 1.28;
+      camera.position.set(3.95, 2.85, 6.9);
+      camera.lookAt(0, 0.12, 0);
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setClearColor(0x000000, 0);
@@ -386,36 +410,27 @@ function UnknownBoxScene({ feedback, onTouch }) {
       scene.add(stage);
       const lightField = {
         uTime: { value: 0 },
-        uLightPositions: { value: [new THREE.Vector3(0.08, 0.05, 0.68), new THREE.Vector3(-0.3, 0.2, 0.12), new THREE.Vector3(0.25, 0.35, -0.5)] },
-        uLightColors: { value: [new THREE.Color('#E8B46B'), new THREE.Color('#D98E7B'), new THREE.Color('#9EBBC5')] },
-        uLightIntensities: { value: [1.08, 0.48, 0.28] },
-        uLightRadii: { value: [1.06, 1.46, 0.84] },
+        uLightPositions: { value: [new THREE.Vector3(0.08, 0.05, 0.45), new THREE.Vector3(-0.44, 0.28, 0.52), new THREE.Vector3(0.84, 0.48, 0.34)] },
+        uLightColors: { value: [new THREE.Color('#E8B46B'), new THREE.Color('#C98288'), new THREE.Color('#789EAD')] },
+        uLightIntensities: { value: [0.74, 0.58, 0.82] },
+        uLightRadii: { value: [1.3, 1.5, 0.88] },
       };
       const boxOffset = new THREE.Vector3(0, -0.03, 0);
-      const lidOffset = new THREE.Vector3(0, 0.98, 0.02);
-      const boxMaterial = createBoxMaterial('#c7d0d1', boxOffset, lightField);
-      const lidMaterial = createBoxMaterial('#e5ebea', lidOffset, lightField);
-      const box = new THREE.Mesh(new RoundedBoxGeometry(2.52, 1.74, 2.18, 6, 0.14), boxMaterial);
+      const lidOffset = new THREE.Vector3(0, 0.93, 0.02);
+      const boxMaterial = createBoxMaterial('#F1EAE1', boxOffset, lightField);
+      const lidMaterial = createBoxMaterial('#F7F3EB', lidOffset, lightField);
+      const box = new THREE.Mesh(new RoundedBoxGeometry(2.52, 1.74, 2.18, 8, 0.16), boxMaterial);
       box.position.copy(boxOffset);
       box.userData.kind = 'box';
       stage.add(box);
-      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.28, 0.25, 1.92, 6, 0.1), lidMaterial);
+      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.3, 0.18, 1.94, 8, 0.1), lidMaterial);
       lid.position.copy(lidOffset);
       lid.userData.kind = 'box';
       stage.add(lid);
 
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.024, 0.035), new THREE.MeshBasicMaterial({ color: '#66757a', transparent: true, opacity: 0.72 }));
-      seam.position.set(0, 0.65, 1.105);
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.018, 0.032), new THREE.MeshBasicMaterial({ color: '#918b80', transparent: true, opacity: 0.42 }));
+      seam.position.set(0, 0.78, 1.105);
       stage.add(seam);
-      const signalMaterial = new THREE.MeshBasicMaterial({ color: '#edb66b', transparent: true, opacity: 0.92 });
-      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 16), signalMaterial);
-      signal.position.set(0, -0.05, 1.15);
-      stage.add(signal);
-      const ringMaterial = new THREE.MeshBasicMaterial({ color: '#df846d', transparent: true, opacity: 0.28 });
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.012, 12, 32), ringMaterial);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.set(0, -0.05, 1.155);
-      stage.add(ring);
 
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
@@ -467,24 +482,21 @@ function UnknownBoxScene({ feedback, onTouch }) {
         const age = Date.now() - currentFeedback.stamp;
         const pulse = age >= 0 && age < 1250 ? Math.sin((age / 1250) * Math.PI) : 0;
         const recentlyApproached = performance.now() - lastPointerAt < 900;
+        const delta = Math.min(timer.getDelta(), 0.04);
         targetWithDrift.copy(interactionTarget);
         if (!recentlyApproached) {
           targetWithDrift.x += Math.sin(elapsed * 0.34) * 0.12;
           targetWithDrift.y += Math.cos(elapsed * 0.26) * 0.08;
           targetWithDrift.z += Math.sin(elapsed * 0.2) * 0.06;
         }
-        lightVelocity.addScaledVector(targetWithDrift.sub(lightPosition), Math.min(timer.getDelta() * 3.8, 0.08));
-        lightVelocity.multiplyScalar(Math.exp(-5.2 * Math.min(timer.getDelta(), 0.04)));
-        lightPosition.addScaledVector(lightVelocity, Math.min(timer.getDelta(), 0.04));
+        lightVelocity.addScaledVector(targetWithDrift.sub(lightPosition), Math.min(delta * 3.8, 0.08));
+        lightVelocity.multiplyScalar(Math.exp(-5.2 * delta));
+        lightPosition.addScaledVector(lightVelocity, delta);
         const primary = lightField.uLightPositions.value[0];
         primary.copy(lightPosition).multiplyScalar(1 - pulse * 0.28);
-        lightField.uLightPositions.value[1].copy(lightPosition).multiplyScalar(0.56).add(new THREE.Vector3(-0.28, 0.18, -0.08));
-        lightField.uLightPositions.value[2].copy(lightPosition).multiplyScalar(0.32).add(new THREE.Vector3(0.15, -0.2, -0.54));
+        lightField.uLightPositions.value[1].copy(lightPosition).multiplyScalar(0.38).add(new THREE.Vector3(-0.45, 0.16, 0.3));
+        lightField.uLightPositions.value[2].copy(lightPosition).multiplyScalar(0.28).add(new THREE.Vector3(0.62, 0.36, 0.28));
         lightField.uTime.value = elapsed;
-        signalMaterial.opacity = 0.82 + pulse * 0.16;
-        signal.scale.setScalar(1 + pulse * 0.04);
-        ring.scale.setScalar(1 + pulse * 0.12);
-        ringMaterial.opacity = 0.2 + pulse * 0.15;
         renderer.render(scene, camera);
         raf = requestAnimationFrame(animate);
       };
@@ -493,8 +505,8 @@ function UnknownBoxScene({ feedback, onTouch }) {
       const onResize = () => {
         renderer.setSize(mount.clientWidth, mount.clientHeight);
         const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1);
-        camera.left = -3.6 * aspect;
-        camera.right = 3.6 * aspect;
+        camera.left = -2.35 * aspect;
+        camera.right = 2.35 * aspect;
         camera.top = 2.7;
         camera.bottom = -2.7;
         camera.updateProjectionMatrix();
