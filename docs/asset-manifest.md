@@ -4,8 +4,8 @@ All assets below are local project assets. New raster illustrations were generat
 
 | File | Source / prompt intent | Size | Usage | Status |
 | --- | --- | --- | --- | --- |
-| `public/assets/stickers/knock-hand-sticker.png` | ImageGen; naive hand-drawn index-finger tap, warm peach/coral palette, thick white die-cut edge, transparent background | 1312 × 1199 PNG, RGBA, 773 KB | `src/main.jsx` `.knock-hand-sticker` inside the live box stage; animated twice after “敲两下” | Integrated; inspect small-size edge clarity during browser QA |
-| `public/assets/stickers/unknown-presence-sticker.png` | ImageGen; abstract cloud-like unknown presence, pastel coral/lavender/yellow/sage, no face or species, white sticker edge, transparent background | 1374 × 1145 PNG, RGBA, 1.30 MB | Today's Note and Personality Profile in the phone prototype | Integrated; low contrast against pale paper is being checked in browser |
+| `public/assets/stickers/knock-hand-sticker.png` | ImageGen; naive hand-drawn index-finger tap, warm peach/coral palette, thick white die-cut edge, transparent background | 1312 × 1199 PNG, RGBA, 773 KB | `src/main.jsx` `.knock-hand-sticker` inside the live box stage; animated twice after “敲两下” | Integrated; full interaction and mobile-size QA remains open |
+| `public/assets/stickers/unknown-presence-sticker.png` | ImageGen; abstract cloud-like unknown presence, pastel coral/lavender/yellow/sage, no face or species, white sticker edge, transparent background | 1374 × 1145 PNG, RGBA, 1.30 MB | Today's Note and Personality Profile in the phone prototype | Integrated; visibility verified in fresh 1440 × 1000 production-preview screenshot; mobile-size QA remains open |
 
 ## Native vector / code visuals
 
@@ -18,3 +18,4 @@ All assets below are local project assets. New raster illustrations were generat
 - `public/assets/hand-reaching.png` is a red glowing hand, not the requested calm die-cut tap sticker.
 - `public/assets/personality-stickers.png` includes recognizable animal drawings, which would imply an identity the product must leave unknown.
 - Other legacy collage sheets have not been assumed reusable; each should be inspected and cropped deliberately before integration.
+
