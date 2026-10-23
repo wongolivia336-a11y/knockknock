@@ -98,7 +98,7 @@ function playTone(type) {
   }
 }
 
-function playKnockPair() {
+function playKnockPair(soft = false) {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -113,7 +113,7 @@ function playKnockPair() {
       osc.frequency.setValueAtTime(index ? 126 : 148, start);
       osc.frequency.exponentialRampToValueAtTime(index ? 82 : 94, start + 0.11);
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(index ? 0.045 : 0.052, start + 0.008);
+       gain.gain.exponentialRampToValueAtTime(index ? (soft ? 0.022 : 0.038) : (soft ? 0.026 : 0.044), start + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
       osc.connect(gain).connect(ctx.destination);
       osc.start(start);
@@ -125,6 +125,40 @@ function playKnockPair() {
   }
 }
 
+function playSoftRustle() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    audioContext ||= new AudioContext();
+    const ctx = audioContext;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const duration = 0.34;
+    const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let index = 0; index < samples.length; index += 1) {
+      const fade = Math.sin(Math.PI * index / samples.length) ** 1.6;
+      samples[index] = (Math.random() * 2 - 1) * fade;
+    }
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    const start = ctx.currentTime;
+    source.buffer = buffer;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1550, start);
+    filter.frequency.exponentialRampToValueAtTime(540, start + duration);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.012, start + 0.045);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    source.connect(filter).connect(gain).connect(ctx.destination);
+    source.start(start);
+    source.stop(start + duration + 0.02);
+    source.addEventListener('ended', () => { source.disconnect(); filter.disconnect(); gain.disconnect(); });
+  } catch {
+    // Procedural ambience is optional; the interaction itself remains available.
+  }
+}
+
 function playListenSound() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -133,8 +167,8 @@ function playListenSound() {
     const ctx = audioContext;
     if (ctx.state === 'suspended') void ctx.resume();
     [
-      { frequency: 294, delay: 0, duration: 0.42, volume: 0.026 },
-      { frequency: 392, delay: 0.09, duration: 0.5, volume: 0.016 },
+      { frequency: 228, delay: 0, duration: 0.48, volume: 0.022 },
+      { frequency: 318, delay: 0.13, duration: 0.56, volume: 0.013 },
     ].forEach(note => {
       const start = ctx.currentTime + note.delay;
       const osc = ctx.createOscillator();
@@ -449,14 +483,14 @@ const BOX_FRAGMENT_SHADER = `
     for (int i = 0; i < 4; i++) {
       vec3 delta = warpedPosition - uLightPositions[i];
       float distanceSquared = dot(delta, delta);
-      float radius = uLightRadii[i];
+      float radius = uLightRadii[i] * 0.76;
       float edgeNoise = softNoise(warpedPosition * 2.4 + vec3(float(i) * 3.1, uTime * 0.018, float(i) * 1.7));
-      float organicDistance = max(0.0, distanceSquared + (edgeNoise - 0.5) * uEdgeDiffusion * 0.16 * radius * radius);
-      float halo = exp(-organicDistance / (2.0 * radius * radius));
-      float coreRadius = radius * (0.22 + uSoftness * 0.18);
+      float organicDistance = max(0.0, distanceSquared + (edgeNoise - 0.5) * uEdgeDiffusion * 0.075 * radius * radius);
+      float halo = exp(-organicDistance / (2.0 * (radius * 1.18) * (radius * 1.18)));
+      float coreRadius = radius * (0.27 + uSoftness * 0.13);
       float core = exp(-organicDistance / (2.0 * coreRadius * coreRadius));
       float wrap = mix(0.55, 0.92, max(dot(normalize(-delta + vec3(0.0001)), n), 0.0) * uEdgeDiffusion);
-      float contribution = (core * 0.46 + halo * 0.54) * uLightIntensities[i] * wrap;
+      float contribution = (core * 0.54 + halo * 0.34) * uLightIntensities[i] * wrap;
       weightedField += uLightColors[i] * contribution;
       totalWeight += contribution;
       if (contribution > dominantContribution) {
@@ -467,31 +501,35 @@ const BOX_FRAGMENT_SHADER = `
 
     vec3 averageColor = weightedField / max(totalWeight, 0.0001);
     float averageLuma = dot(averageColor, vec3(0.299, 0.587, 0.114));
-    vec3 fieldColor = clamp(mix(vec3(averageLuma), averageColor, 1.12), 0.0, 1.0);
-    fieldColor = mix(fieldColor, dominantColor, clamp(0.3 + dominantContribution * 0.48, 0.3, 0.76));
-    float fieldAmount = min(0.98, 1.0 - exp(-totalWeight * (2.2 + uIntensity * 0.9)));
+    vec3 fieldColor = clamp(mix(vec3(averageLuma), averageColor, 1.08), 0.0, 1.0);
+    fieldColor = mix(fieldColor, dominantColor, clamp(dominantContribution * 0.12, 0.0, 0.2));
+    float fieldAmount = min(0.78, 1.0 - exp(-totalWeight * (1.45 + uIntensity * 0.38)));
     vec3 interactionDelta = warpedPosition - uInteractionPosition;
-    float interactionHalo = exp(-dot(interactionDelta, interactionDelta) / 1.12);
-    float interactionCore = exp(-dot(interactionDelta, interactionDelta) / 0.22);
-    float interactionAmount = (interactionHalo * 0.72 + interactionCore * 0.28) * uInteractionStrength;
-    fieldColor = mix(fieldColor, uInteractionColor, clamp(interactionAmount * 0.7, 0.0, 0.8));
-    fieldAmount = min(0.84, fieldAmount + interactionAmount * 0.32);
+    float interactionDistance = dot(interactionDelta, interactionDelta);
+    float closeness = smoothstep(0.18, 0.82, uInteractionStrength);
+    float interactionCoreRadius = mix(0.68, 0.3, closeness);
+    float interactionHaloRadius = mix(1.46, 0.86, closeness);
+    float interactionHalo = exp(-interactionDistance / (2.0 * interactionHaloRadius * interactionHaloRadius));
+    float interactionCore = exp(-interactionDistance / (2.0 * interactionCoreRadius * interactionCoreRadius));
+    float interactionAmount = (interactionHalo * mix(0.17, 0.24, closeness) + interactionCore * mix(0.24, 0.45, closeness)) * uInteractionStrength;
+    fieldColor = mix(fieldColor, uInteractionColor, clamp(interactionAmount * 0.52, 0.0, 0.58));
+    fieldAmount = min(0.86, fieldAmount + interactionAmount * 0.19);
 
     vec3 viewDirection = normalize(vViewPosition);
     float edgeLight = pow(1.0 - max(dot(normalize(vLocalNormal), normalize(vec3(-0.1, 0.48, 0.86))), 0.0), 1.65);
     float grain = (microGrain - 0.5) * uGrain;
     vec3 atmosphere = mix(uBaseColor, uAtmosphereColor, uAtmosphereStrength * (0.5 + lowFrequency * 0.25));
     vec3 surfaceColor = atmosphere * (diffuse * 0.92 + (lowFrequency - 0.5) * 0.055 + edgeLight * 0.035);
-    float fieldBlend = clamp(fieldAmount * 0.9, 0.0, 0.9);
+    float fieldBlend = clamp(fieldAmount * 0.68, 0.0, 0.64);
     vec3 shell = vec3(0.86, 0.82, 0.76) * (0.88 + diffuse * 0.12);
-    float opticalMix = clamp(0.5 + fieldAmount * 0.46, 0.5, 0.96);
+    float opticalMix = clamp(0.34 + fieldAmount * 0.52, 0.34, 0.78);
     vec3 color = mix(surfaceColor * 1.08, fieldColor, opticalMix);
     color = mix(color, shell, 0.055 + edgeLight * 0.055);
     float sideFace = smoothstep(0.24, 0.92, max(n.x, 0.0));
     float topFace = smoothstep(0.24, 0.92, max(n.y, 0.0));
     color *= mix(vec3(1.0), vec3(0.84, 0.85, 0.86), sideFace);
     color *= mix(vec3(1.0), vec3(1.045, 1.025, 0.99), topFace);
-    color += fieldColor * min(0.14, totalWeight * 0.18);
+    color += fieldColor * min(0.075, totalWeight * 0.095);
     color += fieldColor * 0.045 * mediumNoise;
     color += vec3(grain);
     color += vec3(0.012, 0.01, 0.008) * (1.0 - max(dot(viewDirection, normalize(vLocalNormal)), 0.0));
@@ -904,12 +942,35 @@ function IslandMap() {
   </svg>;
 }
 
+const ISLAND_VISITORS = [
+  {
+    id: '047',
+    place: '雾岸岛',
+    time: '今天 · 20:14',
+    ownerNote: '它听见第二下敲击后，安静了很久，才把光慢慢移到窗边。',
+    trace: '一段轻敲，和后来才抵达的暖光。',
+    sticker: '/assets/stickers/unknown-presence-sticker.png',
+  },
+  {
+    id: '012',
+    place: '浅湾',
+    time: '今天 · 18:42',
+    ownerNote: '我离开了一会儿。回来时，它的光还停在刚才碰过的地方。',
+    trace: '离开与重逢之间，留下了一点熟悉。',
+    sticker: '/assets/stickers/listening-ear-sticker.png',
+  },
+];
+
 function App() {
   const [state, setState] = useState(loadState);
   const [activePresetId, setActivePresetId] = useState(loadLightPresetId);
   const [previewPresetId, setPreviewPresetId] = useState(null);
   const [skinPulse, setSkinPulse] = useState(0);
   const [tab, setTab] = useState('box');
+  const [islandView, setIslandView] = useState('map');
+  const [savedVisits, setSavedVisits] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('knockknock.saved-visits.v1') || '[]'); } catch { return []; }
+  });
   const [feedback, setFeedback] = useState({ type: 'idle', stamp: Date.now() - 2000 });
   const [hoverAction, setHoverAction] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -946,8 +1007,12 @@ function App() {
   }, [activePresetId]);
 
   useEffect(() => {
+    localStorage.setItem('knockknock.saved-visits.v1', JSON.stringify(savedVisits));
+  }, [savedVisits]);
+
+  useEffect(() => {
     phoneContentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [tab]);
+  }, [tab, islandView]);
 
   useEffect(() => {
     if (state.badges.length > badgeCountRef.current) setUnlockedBadge(state.badges[state.badges.length - 1]);
@@ -979,7 +1044,7 @@ function App() {
     setState(previous => updateFromInteraction(previous, type));
     setSkinPulse(Date.now());
     setFeedback({ type: 'reply', stamp: Date.now() });
-    setMessage(type === 'wait' ? '你等到了。它留下一点轻轻的回应。' : '它回应了一下，很轻。');
+    setMessage(type === 'wait' ? '你等到了。光慢慢靠近，又安静停住。' : '它停了一下，再轻轻回应。');
     if (soundEnabled) playTone('reply');
     responseTimerRef.current = null;
     setBusy(false);
@@ -999,13 +1064,15 @@ function App() {
       if (soundEnabled) playKnockPair();
       responseTimerRef.current = window.setTimeout(() => commitReply('knock'), 1800);
     } else if (type === 'wait') {
-      setMessage('这一次，留一点时间给它。');
+      setMessage('沙沙一声，先把一点时间留给它。');
+      if (soundEnabled) playSoftRustle();
       responseTimerRef.current = window.setTimeout(() => commitReply('wait'), 2400);
     } else if (type === 'touch') {
-      setMessage('光朝你的手边，挪近了一点。');
+      setMessage('两声很轻的叩响。光朝你的手边挪近了一点。');
+      if (soundEnabled) playKnockPair(true);
       responseTimerRef.current = window.setTimeout(() => commitReply('touch'), 550);
     } else {
-      setMessage('静一会儿，听听盒子里的轻响。');
+      setMessage('一声低低的回响，像有什么在里面活动。');
       if (soundEnabled) playListenSound();
       responseTimerRef.current = window.setTimeout(() => commitReply('listen'), 1550);
     }
@@ -1072,10 +1139,7 @@ function App() {
     touch: '/assets/stickers/gentle-touch-sticker.png',
     listen: '/assets/stickers/listening-ear-sticker.png',
   }[feedback.type];
-  const statusLabel = busy
-    ? ({ knock: '收到敲击', wait: '正在等待', touch: '感到靠近', listen: '正在聆听' }[feedback.type] || '正在回应')
-    : state.presenceState === 'responding' ? '已留下回应' : '此刻安静';
-  const todayNote = state.interactions > 0 ? state.lastEvent : '还没有新的回应。可以轻敲两下，或安静等一会。';
+  const todayNote = state.interactions > 0 ? state.lastEvent : '今天还没有新的片刻。可以敲两下，看看它会不会回应。';
   const visibleEvidence = state.evidence.filter(item => evidenceFilter === 'all' || (evidenceFilter === 'sound' ? item.kind === 'relationship' : evidenceFilter === 'light' ? item.kind === 'origin' : item.kind === 'behavior'));
 
   return <div className="app-shell">
@@ -1087,7 +1151,7 @@ function App() {
 
     <main className="prototype-board" id="experience">
       <section className="scene-column" aria-label="独立实体互动场景">
-        <div className="scene-topline"><span>{COPY.hero.label}</span><span className={`status-pill ${busy ? 'is-active' : ''}`}><i aria-hidden="true"></i>{statusLabel}</span></div>
+        <div className="scene-topline"><span>{COPY.hero.label}</span></div>
         <h1>{COPY.hero.title[0]}<br />{COPY.hero.title[1]}</h1>
         <p className="scene-intro">{COPY.hero.intro[0]}<br />{COPY.hero.intro[1]}</p>
         <div className={`scene-stage ${interactionClasses[feedback.type] || ''}`}>
@@ -1099,7 +1163,7 @@ function App() {
           <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><small className="scene-touch-hint">也可轻触盒面互动</small></div>
           <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions">
             <button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('knock')} onBlur={() => setHoverAction(null)}><img className="action-sticker action-sticker--knock" src="/assets/stickers/knock-hand-sticker.png" alt="" aria-hidden="true" /><span>敲两下</span></button>
-            <button type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('wait')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/wait-hourglass-sticker.png" alt="" aria-hidden="true" /><span>等一会儿</span></button>
+            <button type="button" className={busy && feedback.type === 'wait' ? 'is-current-action' : ''} disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('wait')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/wait-hourglass-sticker.png" alt="" aria-hidden="true" /><span>等一会儿</span></button>
             <button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('touch')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/gentle-touch-sticker.png" alt="" aria-hidden="true" /><span>轻轻碰</span></button>
             <button type="button" disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('listen')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/listening-ear-sticker.png" alt="" aria-hidden="true" /><span>听听看</span></button>
           </div></div>
@@ -1114,7 +1178,7 @@ function App() {
             <div ref={phoneContentRef} className="phone-content">
               <section className="content-head phone-content-head">
                 <div>{sectionLabel && <span className="eyebrow accent">{sectionLabel}</span>}<h2>{sectionTitle}</h2><p>{sectionCopy}</p></div>
-                <div className="phone-head-tools"><span className={`presence-state-chip ${busy ? 'is-active' : ''}`}><i aria-hidden="true"></i>{statusLabel}</span><button className="phone-menu-button" type="button" onClick={() => setDrawerOpen(true)} aria-label="打开贴纸抽屉"><i></i><i></i><i></i></button></div>
+                <div className="phone-head-tools"><button className="phone-menu-button" type="button" onClick={() => setDrawerOpen(true)} aria-label="打开贴纸抽屉"><i></i><i></i><i></i></button></div>
               </section>
 
               {tab === 'box' && <section className="phone-home">
@@ -1126,11 +1190,32 @@ function App() {
 
                {tab === 'evidence' && <section className="phone-evidence"><div className="evidence-filter-row" role="tablist" aria-label="证据筛选"><button type="button" className={evidenceFilter === 'all' ? 'active' : ''} onClick={() => setEvidenceFilter('all')}>全部</button><button type="button" className={evidenceFilter === 'light' ? 'active' : ''} onClick={() => setEvidenceFilter('light')}>光线</button><button type="button" className={evidenceFilter === 'sound' ? 'active' : ''} onClick={() => setEvidenceFilter('sound')}>声音</button><button type="button" className={evidenceFilter === 'touch' ? 'active' : ''} onClick={() => setEvidenceFilter('touch')}>靠近</button></div><div className="sticker-wall"><div className="sticker sticker-orange"><StickerGlyph kind="curious" /><span>还没<br />命名</span></div><div className="sticker sticker-yellow"><StickerGlyph kind="patient" /><span>它等了<br />一会儿</span></div><div className="sticker sticker-blue"><StickerGlyph kind="night" /><span>一段<br />声音</span></div><div className="sticker sticker-pink"><StickerGlyph kind="warm" /><span>第三次<br />来访</span></div></div><div className="evidence-scrap-row" aria-label="证据碎片"><div className="evidence-scrap signal-scrap"><span>今日信号</span><SignalWave active={feedback.type === 'reply'} /><small>02:36 / 有一点回来</small></div><div className="evidence-scrap gradient-scrap"><MiniBoxArt preset={getLightPreset(activePresetId)} /><small>光场碎片 / {getLightPreset(activePresetId).title[0]}</small></div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.filter(id => BADGE_DETAILS[id]).length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} onOpen={setSelectedBadge} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{visibleEvidence.slice(0, 4).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}{visibleEvidence.length === 0 && <p className="empty-evidence">这一类线索还没有留下来。</p>}</div></section>}
 
-               {tab === 'island' && <section className="phone-island"><div className="island-art-card"><IslandMap /></div><div className="island-icon-grid"><button aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div><div className="phone-section-line"><span>邻居的回应</span><span>慢一点也没关系</span></div><div className="postcard"><SignalWave active /><small>047 号盒子 / 晚了 2.4 秒</small></div><button className="primary-button" onClick={sendPostcard}>寄出一段声音</button><div className="social-stat"><span>已寄出 <b>{state.postcards}</b> 张</span><span>偶尔共鸣 <b>{state.social}%</b></span></div></section>}
+               {tab === 'island' && (islandView === 'visitors' ? <section className="phone-island island-visitors-page">
+                 <button className="island-back-button" type="button" onClick={() => setIslandView('map')}><span aria-hidden="true">←</span> 回到群岛</button>
+                 <div className="island-visitors-heading"><span className="eyebrow accent">今日来访 · {ISLAND_VISITORS.length} 张明信片</span><h3>从远处寄来的相处片刻</h3><p>每封回信都慢一点，也都只讲一个具体的瞬间。</p><img src="/assets/stickers/unknown-presence-sticker.png" alt="一枚抽象的未知陪伴贴纸" /></div>
+                 <div className="visitor-card-list">{ISLAND_VISITORS.map(visitor => {
+                   const saved = savedVisits.includes(visitor.id);
+                   return <article className="visitor-card" key={visitor.id}>
+                     <div className="visitor-card-meta"><span>{visitor.id} 号盒子 · {visitor.place}</span><time>{visitor.time}</time></div>
+                     <div className="visitor-owner-note"><img src={visitor.sticker} alt="" aria-hidden="true" /><div><small>主人捎来的话</small><blockquote>“{visitor.ownerNote}”</blockquote></div></div>
+                     <p className="visitor-trace">{visitor.trace}</p>
+                     <div className="visitor-card-actions"><button type="button" onClick={() => { if (soundEnabled) playListenSound(); setMessage(`听见了 ${visitor.id} 号盒子寄来的轻响。`); }}>听这段回声</button><button type="button" className={saved ? 'is-saved' : ''} onClick={() => setSavedVisits(current => saved ? current.filter(id => id !== visitor.id) : [...current, visitor.id])}>{saved ? '已收进明信片册' : '收进明信片册'}</button></div>
+                   </article>;
+                 })}</div>
+                 <p className="island-privacy-note">这里没有实时聊天。只有主人愿意分享的一小段观察，会在某个时候慢慢抵达。</p>
+               </section> : <section className="phone-island">
+                 <div className="island-art-card"><IslandMap /><img className="island-sticker island-sticker-glow" src="/assets/stickers/unknown-presence-sticker.png" alt="抽象的未知陪伴贴纸" /><img className="island-sticker island-sticker-ear" src="/assets/stickers/listening-ear-sticker.png" alt="倾听的贴纸" /></div>
+                 <div className="island-icon-grid"><button type="button" onClick={() => { if (soundEnabled) playListenSound(); setMessage('听见一段很轻的回响。'); }} aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button type="button" onClick={() => setIslandView('visitors')} aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button type="button" onClick={() => setTab('profile')} aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div>
+                 <div className="phone-section-line"><span>今日来访</span><span>{ISLAND_VISITORS.length} 张声音明信片</span></div>
+                 <div className="postcard island-postcard-preview"><SignalWave active /><small>047 号盒子 · 主人捎来一段晚归后的观察</small></div>
+                 <button className="island-visitors-link" type="button" onClick={() => setIslandView('visitors')}><span>打开今天的来信</span><b aria-hidden="true">↗</b></button>
+                 <button className="primary-button" onClick={sendPostcard}>寄出一段声音</button>
+                 <p className="island-postcard-caption">你寄出的声音不必马上被听见；它可以在某个安静的时刻回来。</p>
+               </section>)}
 
                {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一位慢热的伙伴</h3><p>这是根据目前线索形成的暂时理解。</p><div className="profile-doodle"><img className="profile-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="抽象渐变形态，代表尚未命名的伙伴" /><span>柔和 / 慢热 / 再靠近</span></div><div className="profile-progress-card"><div><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><i><em style={{ width: `${state.currentCycle.progress}%` }}></em></i><small>进度代表相处阶段，不代表它的身份。</small></div><div className="phone-section-line"><span>目前推测</span><span>可能继续变化</span></div><div className="personality-chip-grid profile-personality-grid">{PERSONALITY_COPY.map(([id, title, copy]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' || id === 'curious' ? 'curious' : id === 'nocturnal' ? 'night' : 'patient'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div><div className="phone-section-line"><span>伙伴纪念章</span><span>{state.badges.filter(id => state.badges.includes(id)).length} / {badges.length}</span></div><div className="badge-gallery">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} compact onOpen={setSelectedBadge} />)}</div><button type="button" className="clue-button" onClick={() => setProgressOpen(true)}><span>查看探索阶段</span><b>↗</b></button><p className="profile-footnote">下一次回应，也许会让这份理解变得不同。</p></section>}
             </div>
-            <nav className="bottom-nav" aria-label="App 主导航"><button aria-current={tab === 'box' ? 'page' : undefined} className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>今天</small></button><button aria-current={tab === 'evidence' ? 'page' : undefined} className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>记录</small></button><button aria-current={tab === 'island' ? 'page' : undefined} className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span><Icon name="island" /></span><small>群岛</small></button><button aria-current={tab === 'profile' ? 'page' : undefined} className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格</small></button></nav>
+            <nav className="bottom-nav" aria-label="App 主导航"><button aria-current={tab === 'box' ? 'page' : undefined} className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>今天</small></button><button aria-current={tab === 'evidence' ? 'page' : undefined} className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>记录</small></button><button aria-current={tab === 'island' ? 'page' : undefined} className={tab === 'island' ? 'active' : ''} onClick={() => { setIslandView('map'); setTab('island'); }}><span><Icon name="island" /></span><small>群岛</small></button><button aria-current={tab === 'profile' ? 'page' : undefined} className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格</small></button></nav>
             {drawerOpen && <div className="phone-overlay" role="presentation" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }}><aside className={`phone-drawer ${settingsOpen ? 'is-settings' : ''}`} role="dialog" aria-modal="true" aria-label={settingsOpen ? '设置菜单' : '贴纸抽屉'} onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }} aria-label="关闭菜单">×</button>{settingsOpen ? <>{resetConfirm ? <><span className="eyebrow accent">重新开始</span><h3>要重新开始吗？</h3><p>这会清除本地的证据、徽章和当前光场选择。这个动作不能撤回。</p><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => setResetConfirm(false)}>先不要</button><button className="drawer-action danger" type="button" onClick={reset}>清除并重新开始</button></div></> : <><span className="eyebrow accent">设置</span><h3>按你的节奏来</h3><p>你可以关闭声音，或重新开始这一轮。</p><div className="settings-list"><button type="button" onClick={() => setState(previous => ({ ...previous, soundEnabled: previous.soundEnabled === false }))}><span>声音回应</span><b>{soundEnabled ? '开启' : '关闭'}</b></button><button type="button" onClick={() => { setSettingsOpen(false); setTab('profile'); }}><span>性格档案</span><b>查看 ↗</b></button><button type="button" onClick={() => setResetConfirm(true)}><span>重新开始</span><b>需要确认</b></button></div></>} </> : <><span className="eyebrow accent">贴纸抽屉</span><h3>今天留下的</h3><p>一些还不能解释的东西，先放在这里。</p><div className="drawer-sticker-stack"><StickerBadge id="origin" compact /><StickerBadge id="waited" compact /><StickerBadge id="postcard" compact /><StickerBadge id="signal" compact /></div><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => { setDrawerOpen(false); setTab('evidence'); }}>收进证据册 <span>↗</span></button><button className="drawer-action" type="button" onClick={() => setSettingsOpen(true)}>设置 <span>⋯</span></button></div></>}</aside></div>}
              {selectedEvidence && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setSelectedEvidence(null)}><section className="phone-sheet" role="dialog" aria-modal="true" aria-label="证据详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedEvidence(null)} aria-label="关闭证据详情">×</button><span className={`log-dot ${selectedEvidence.kind}`}></span><span className="eyebrow accent">证据 · {selectedEvidence.time}</span><h3>{selectedEvidence.title}</h3><p>{selectedEvidence.note}</p><div className="sheet-mark"><Icon name={selectedEvidence.kind === 'relationship' ? 'sound' : selectedEvidence.kind === 'touch' ? 'light' : 'evidence'} /></div><small>这不是结论，只是它曾经靠近过的地方。</small></section></div>}
              {selectedBadge && <div className="phone-overlay badge-overlay" role="presentation" onClick={() => setSelectedBadge(null)}><section className="phone-sheet badge-detail-sheet" role="dialog" aria-modal="true" aria-label="徽章详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedBadge(null)} aria-label="关闭徽章详情">×</button><StickerBadge id={selectedBadge} compact unlocked={state.badges.includes(selectedBadge)} /><span className="eyebrow accent">徽章 · {BADGE_DETAILS[selectedBadge]?.label || '未知'}</span><h3>{BADGE_DETAILS[selectedBadge]?.title}</h3><p>{state.badges.includes(selectedBadge) ? BADGE_DETAILS[selectedBadge]?.copy : '这枚贴纸还在远处，等一段足够具体的观察。'}</p><small>{state.badges.includes(selectedBadge) ? '已经收进你的收藏。' : '证据足够时，它会自己出现。'}</small></section></div>}
@@ -1144,9 +1229,9 @@ function App() {
 
     <CoverWall activePresetId={activePresetId} previewPresetId={previewPresetId} onPreviewStart={setPreviewPresetId} onPreviewEnd={() => setPreviewPresetId(null)} onCommit={commitPreset} pulseKey={skinPulse} />
     <section className="product-idea" id="product-idea">
-      <span className="eyebrow">KNOCK KNOCK · 产品理念</span>
-      <div className="product-idea-copy"><h2>不必揭晓，<br />也能慢慢认识。</h2><p>盒子里是什么，始终没有答案。你可以敲击、触摸、聆听或等待；它留下的光、声音与停顿，会成为线索。久而久之，你会形成自己的性格猜测——不是物种鉴定，而是一段相处的记录。</p></div>
-      <div className="idea-sequence" aria-label="互动、回应、线索、理解"><span>互动</span><i>→</i><span>回应</span><i>→</i><span>线索</span><i>→</i><span>理解</span></div>
+      <span className="eyebrow">KNOCK KNOCK · ROBOT WITH CARE</span>
+      <div className="product-idea-copy"><h2>照料、回应与想象，<br />能不能建立一段关系？</h2><p>敲击是邀请，触摸是靠近，等待也是照料。它以光、声音和细微动作回应；你不需要知道盒子里是什么，只需从这些片刻里，慢慢形成自己的理解。我们验证的不是它像哪一种动物，而是“被回应”的感受能否让陪伴发生。</p></div>
+      <div className="idea-sequence" aria-label="照料、回应、相处习惯、暂时理解"><span>照料</span><i>→</i><span>回应</span><i>→</i><span>相处习惯</span><i>→</i><span>暂时理解</span></div>
     </section>
 
   </div>;
