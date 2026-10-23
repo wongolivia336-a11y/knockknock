@@ -195,13 +195,7 @@ function Icon({ name, label }) {
 
 function BrandMark() {
   return <span className="brand-lockup">
-    <svg className="brand-mark" viewBox="0 0 44 40" role="img" aria-label="KNOCK KNOCK 图形标记">
-      <defs><linearGradient id="brand-glow" x1="7" y1="34" x2="35" y2="5" gradientUnits="userSpaceOnUse"><stop stopColor="#E99A77" /><stop offset=".55" stopColor="#D8B9D9" /><stop offset="1" stopColor="#EBCB8E" /></linearGradient></defs>
-      <path d="M9 9.5h20.5a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-10a6 6 0 0 1 6-6Z" fill="url(#brand-glow)" fillOpacity=".38" stroke="#463934" strokeWidth="1.7" />
-      <path d="M13 22c2.8-4.2 6.2-4.2 9 0s6.2 4.2 9 0" fill="none" stroke="#463934" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M34.5 9.2 37 6.7M38 13.5h3" fill="none" stroke="#E58F6C" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="21.8" cy="22" r="2.1" fill="#FFF9F2" stroke="#463934" strokeWidth="1.1" />
-    </svg>
+    <img className="brand-mark" src="/assets/knock-knock-logo.svg" alt="KNOCK KNOCK 图形标记" />
     <span className="brand-wordmark"><strong>KNOCK KNOCK</strong><small>THE UNKNOWN BOX</small></span>
   </span>;
 }
@@ -877,7 +871,37 @@ function MiniBoxArt({ preset }) {
 }
 
 function IslandMap() {
-  return <svg className="island-map-svg" viewBox="0 0 320 180" role="img" aria-label="盒群岛地图"><path className="map-water-line" d="M21 121c44-41 84-34 127-15s76 25 151-40" /><path className="map-water-line dashed" d="M55 48c47 28 84 15 128 30s71 11 110-13" /><path className="map-route" d="M68 105c41-16 79-35 117-29s48 24 84 17" /><path className="map-route map-route-short" d="M99 47c20 25 39 31 79 29" /><g className="map-island island-main"><path d="M45 100c-12-15 2-31 23-29 14-17 37-7 38 10 18 9 11 28-8 30-15 14-40 9-53-11Z" /><path d="M63 91c13-8 23-8 34 0" /></g><g className="map-island island-neighbor"><path d="M174 62c-8-12 3-23 17-20 12-13 31-4 30 10 14 8 8 22-7 24-11 10-31 5-40-14Z" /><circle cx="194" cy="63" r="4" /></g><g className="map-island island-quiet"><path d="M234 116c-7-11 4-20 17-18 8-12 27-5 26 8 12 7 7 20-7 21-10 9-29 5-36-11Z" /><path d="M249 113h14M256 106v14" /></g><g className="map-stamp"><circle cx="80" cy="110" r="11" /><path d="m75 110 4 4 7-9" /></g><g className="map-postcard"><path d="m137 111 19-6 11 11-19 6Z" /><path d="m145 111 4 4 6-7" /></g></svg>;
+  return <svg className="island-map-svg" viewBox="0 0 320 180" role="img" aria-label="盒群岛地图">
+    <defs>
+      <linearGradient id="island-sea" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f4f3e9" /><stop offset="1" stopColor="#eaf1e9" /></linearGradient>
+      <linearGradient id="island-sand" x1="0" y1="0" x2=".9" y2="1"><stop stopColor="#fffaf0" /><stop offset="1" stopColor="#eadfc9" /></linearGradient>
+      <linearGradient id="island-peach" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f7d897" /><stop offset="1" stopColor="#e9bd85" /></linearGradient>
+      <linearGradient id="island-sage" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#d3e2d3" /><stop offset="1" stopColor="#a8c5bc" /></linearGradient>
+      <linearGradient id="island-lilac" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#e8d8e8" /><stop offset="1" stopColor="#c9b6d1" /></linearGradient>
+    </defs>
+    <rect className="map-sea" x="2" y="2" width="316" height="176" rx="28" fill="url(#island-sea)" />
+    <path className="map-water-line" d="M8 127c28-17 47-17 75-7 23 8 44 7 66-3 25-12 42-9 62 1 27 14 57 10 101-17" />
+    <path className="map-water-line dashed" d="M18 54c28-13 48-10 70 1 25 13 45 15 67 5 23-11 40-10 60 2 24 14 49 14 83 2" />
+    <path className="map-route" d="M65 102c17-14 33-20 50-18 18 2 27 15 43 13 17-2 24-21 42-24 19-3 29 13 44 12 13-1 21-8 31-19" />
+    <path className="map-route map-route-short" d="M103 51c10 14 18 19 30 21 14 2 23-5 35-3 10 1 17 7 25 13" />
+    <g className="map-island island-main">
+      <path className="map-land" d="M39 105c-8-7-10-15-4-22 4-5 11-8 20-8 3-11 13-17 24-15 9 1 15 7 17 15 11-3 20 3 21 12 1 7-4 13-12 16 1 8-6 14-16 15-8 1-15-2-19-7-10 5-25 3-31-6Z" />
+      <path className="map-land-detail" d="M54 87c8-8 18-10 26-7 5 2 8 5 11 9M64 108c11 4 20 3 28-2" />
+      <path className="map-shoreline" d="M43 105c9 7 17 8 27 5" />
+    </g>
+    <g className="map-island island-neighbor">
+      <path className="map-land" d="M166 65c-7-6-8-13-3-19 4-4 10-6 17-4 3-8 10-12 19-10 7 2 11 7 11 13 9-1 15 4 15 11 0 6-4 10-10 12 0 7-6 11-13 11-7 0-12-2-15-6-8 4-17 1-21-8Z" />
+      <path className="map-land-detail" d="M178 52c8-5 16-5 23 0" />
+      <circle className="map-house" cx="194" cy="66" r="3.5" />
+    </g>
+    <g className="map-island island-quiet">
+      <path className="map-land" d="M231 119c-6-6-7-12-2-17 4-4 9-5 15-3 3-7 9-10 16-8 6 2 9 6 9 11 8-1 13 3 13 9 0 5-4 9-9 10 0 6-5 10-11 10s-10-2-13-5c-7 3-14 0-18-7Z" />
+      <path className="map-land-detail" d="M244 115c6-4 13-4 19 0" />
+      <path className="map-house" d="M255 108v11m-4-7 4-4 4 4" />
+    </g>
+    <g className="map-stamp"><circle cx="80" cy="111" r="9" /><path d="m76 111 3 3 5-6" /></g>
+    <g className="map-postcard"><path d="m130 115 17-6 10 9-17 6Z" /><path d="m138 114 4 4 5-6" /></g>
+  </svg>;
 }
 
 function App() {
@@ -975,13 +999,13 @@ function App() {
       if (soundEnabled) playKnockPair();
       responseTimerRef.current = window.setTimeout(() => commitReply('knock'), 1800);
     } else if (type === 'wait') {
-      setMessage('这一次，换它决定什么时候回答。');
+      setMessage('这一次，留一点时间给它。');
       responseTimerRef.current = window.setTimeout(() => commitReply('wait'), 2400);
     } else if (type === 'touch') {
-      setMessage('它似乎朝你的手靠近了一点。');
+      setMessage('光朝你的手边，挪近了一点。');
       responseTimerRef.current = window.setTimeout(() => commitReply('touch'), 550);
     } else {
-      setMessage('请安静片刻，听听它的回声。');
+      setMessage('静一会儿，听听盒子里的轻响。');
       if (soundEnabled) playListenSound();
       responseTimerRef.current = window.setTimeout(() => commitReply('listen'), 1550);
     }
@@ -1042,6 +1066,12 @@ function App() {
   const hoveredAction = COPY.actions[hoverAction];
   const presenceCopy = COPY.state[state.presenceState] || COPY.state.idle;
   const hoverCopy = hoveredAction ? [hoveredAction.label, hoveredAction.hover] : [presenceCopy.eyebrow, presenceCopy.title];
+  const interactionClasses = { knock: 'is-knocking', wait: 'is-waiting', touch: 'is-touching', listen: 'is-listening' };
+  const reactionSticker = {
+    wait: '/assets/stickers/wait-hourglass-sticker.png',
+    touch: '/assets/stickers/gentle-touch-sticker.png',
+    listen: '/assets/stickers/listening-ear-sticker.png',
+  }[feedback.type];
   const statusLabel = busy
     ? ({ knock: '收到敲击', wait: '正在等待', touch: '感到靠近', listen: '正在聆听' }[feedback.type] || '正在回应')
     : state.presenceState === 'responding' ? '已留下回应' : '此刻安静';
@@ -1060,13 +1090,19 @@ function App() {
         <div className="scene-topline"><span>{COPY.hero.label}</span><span className={`status-pill ${busy ? 'is-active' : ''}`}><i aria-hidden="true"></i>{statusLabel}</span></div>
         <h1>{COPY.hero.title[0]}<br />{COPY.hero.title[1]}</h1>
         <p className="scene-intro">{COPY.hero.intro[0]}<br />{COPY.hero.intro[1]}</p>
-        <div className={`scene-stage ${feedback.type === 'knock' ? 'is-knocking' : ''} ${feedback.type === 'listen' ? 'is-listening' : ''}`}>
+        <div className={`scene-stage ${interactionClasses[feedback.type] || ''}`}>
           <UnknownBoxScene feedback={feedback} onTouch={touchBox} activePresetId={activePresetId} previewPresetId={previewPresetId} />
           <img className="knock-hand-sticker" src="/assets/stickers/knock-hand-sticker.png" alt="" aria-hidden="true" />
+          {reactionSticker && <img className="reaction-sticker" src={reactionSticker} alt="" aria-hidden="true" />}
         </div>
         <div className="scene-controls">
           <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><small className="scene-touch-hint">也可轻触盒面互动</small></div>
-          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions"><button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)}><Icon name="knock" /><span>敲两下</span></button><button type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)}><Icon name="wait" /><span>等一会</span></button><button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)}><Icon name="touch" /><span>轻轻碰</span></button><button type="button" disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)}><Icon name="sound" /><span>听听看</span></button></div></div>
+          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions">
+            <button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('knock')} onBlur={() => setHoverAction(null)}><img className="action-sticker action-sticker--knock" src="/assets/stickers/knock-hand-sticker.png" alt="" aria-hidden="true" /><span>敲两下</span></button>
+            <button type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('wait')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/wait-hourglass-sticker.png" alt="" aria-hidden="true" /><span>等一会儿</span></button>
+            <button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('touch')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/gentle-touch-sticker.png" alt="" aria-hidden="true" /><span>轻轻碰</span></button>
+            <button type="button" disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('listen')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/listening-ear-sticker.png" alt="" aria-hidden="true" /><span>听听看</span></button>
+          </div></div>
         </div>
       </section>
 

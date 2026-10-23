@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+  <title id="title">Knock Knock — Unknown Box</title>
+  <desc id="desc">A seamless rounded square container with a small diagonal, leaf-shaped negative-space opening.</desc>
+  <!-- Native, editable vector paths; transparent background and single solid color. -->
+  <path fill="#202021" fill-rule="evenodd" d="
+    M 432 338
+    H 821
+    C 892 338 949 395 949 466
+    V 846
+    C 949 917 892 974 821 974
+    H 432
+    C 361 974 304 917 304 846
+    V 466
+    C 304 395 361 338 432 338
+    Z
+
+    M 696 602
+    C 666 596 615 614 579 642
+    C 562 655 554 669 554 676
+    C 554 685 562 688 577 686
+    C 623 685 672 658 695 618
+    C 700 610 701 604 696 602
+    Z
+  "/>
+</svg>
