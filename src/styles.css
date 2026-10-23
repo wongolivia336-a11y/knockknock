@@ -1277,3 +1277,57 @@ body { min-width: 320px; overflow-x: hidden; }
 
 /* Development-only shader/raycast inspection panel. It is never mounted in production. */
 .light-debug-panel { position: absolute; z-index: 20; top: 12px; left: 12px; max-width: min(360px, calc(100% - 24px)); margin: 0; padding: 9px 11px; border: 1px solid rgba(40, 50, 56, .24); border-radius: 9px; background: rgba(247, 242, 233, .86); box-shadow: 0 8px 22px rgba(49, 55, 59, .12); color: #263238; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; pointer-events: none; }
+
+
+/* Island collage: transparent paper stickers carry the visual language; HTML buttons carry the interaction. */
+.island-art-card { padding: 6px; }
+.island-collage { position: relative; min-height: 236px; overflow: hidden; isolation: isolate; border-radius: 17px; background: linear-gradient(145deg, #f5f2e9 0%, #edf2e9 52%, #f3edf0 100%); }
+.collage-paper-grain { position: absolute; inset: 0; z-index: 0; opacity: .48; pointer-events: none; background: radial-gradient(circle at 12% 18%, rgba(255,255,255,.92) 0 1px, transparent 1.6px), radial-gradient(circle at 74% 68%, rgba(182,166,144,.14) 0 1px, transparent 1.8px), radial-gradient(circle at 38% 82%, rgba(255,255,255,.7) 0 1px, transparent 1.7px); background-size: 31px 29px, 37px 41px, 47px 43px; mix-blend-mode: multiply; }
+.collage-routes { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.collage-route { position: absolute; display: block; height: 1px; border-top: 1px dashed rgba(177,153,142,.52); transform-origin: left center; }
+.collage-route-one { top: 42%; left: 24%; width: 28%; transform: rotate(18deg); }
+.collage-route-two { top: 64%; left: 55%; width: 25%; transform: rotate(-20deg); border-color: rgba(157,170,170,.58); }
+.sticker-art-layer { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.island-composition { position: absolute; filter: drop-shadow(0 5px 7px rgba(77,62,50,.12)); }
+.island-composition img { position: absolute; display: block; width: 100%; height: 100%; object-fit: contain; }
+.island-composition-home { top: 3%; left: -1%; width: 43%; height: 61%; transform: rotate(-3deg); }
+.island-composition-home img:first-child { top: -8%; left: -3%; width: 76%; height: 84%; transform: rotate(-7deg); }
+.island-composition-home img:nth-child(2) { right: -10%; bottom: -14%; width: 78%; height: 78%; opacity: .78; transform: rotate(8deg); }
+.island-composition-visitor { top: 9%; left: 30%; width: 39%; height: 58%; transform: rotate(3deg); }
+.island-composition-visitor img:first-child { inset: 1% -7% -5% 0; width: 100%; height: 100%; transform: rotate(-5deg); }
+.island-composition-visitor img:nth-child(2) { right: -15%; bottom: -4%; width: 42%; height: 42%; transform: rotate(8deg); }
+.island-composition-relation { top: 15%; right: -1%; width: 42%; height: 62%; transform: rotate(-4deg); }
+.island-composition-relation img:first-child { inset: 0 -8% -3% -2%; width: 104%; height: 100%; transform: rotate(6deg); }
+.island-composition-relation img:nth-child(2) { left: -2%; bottom: -11%; width: 53%; height: 53%; opacity: .72; transform: rotate(-13deg); }
+.sticker-spark { position: absolute; width: 9px; height: 9px; border: 2px solid rgba(255,250,239,.9); border-radius: 50%; background: #e9a26f; box-shadow: 0 0 0 2px rgba(230,168,122,.18); }
+.sticker-spark-one { top: 5%; right: 12%; }
+.sticker-spark-two { bottom: 4%; left: 17%; width: 6px; height: 6px; background: #b9b0d0; }
+.sticker-spark-three { top: 0; right: 14%; width: 7px; height: 7px; background: #a7c3bd; }
+.island-hotspot-layer { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.island-hotspot { position: absolute; display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; pointer-events: auto; }
+.island-hotspot-home { top: 7%; left: 7%; width: 28%; height: 45%; }
+.island-hotspot-visitor { top: 16%; left: 35%; width: 28%; height: 43%; }
+.island-hotspot-relation { top: 20%; right: 5%; width: 29%; height: 45%; }
+.hotspot-ring { display: block; width: 16px; height: 16px; border: 1px solid rgba(255,255,255,.95); border-radius: 50%; background: rgba(213,145,112,.36); box-shadow: 0 0 0 4px rgba(255,255,255,.25), 0 3px 8px rgba(77,62,50,.12); opacity: .72; transition: transform .2s ease, opacity .2s ease, background-color .2s ease; }
+.island-hotspot:hover .hotspot-ring, .island-hotspot:focus-visible .hotspot-ring { opacity: 1; transform: scale(1.24); background: rgba(213,145,112,.7); }
+.island-hotspot:focus-visible { outline: 2px solid rgba(213,145,112,.72); outline-offset: 3px; }
+.island-labels { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.island-label { position: absolute; display: grid; gap: 2px; min-width: 73px; padding: 6px 7px; border: 1px solid rgba(255,255,255,.78); border-radius: 9px; background: rgba(255,250,241,.78); box-shadow: 0 4px 10px rgba(77,62,50,.08); color: var(--text-primary); }
+.island-label span { color: #a87560; font-size: 8px; letter-spacing: .04em; }
+.island-label strong { font-size: 10px; font-weight: 750; }
+.island-label small { color: var(--text-secondary); font-size: 7px; line-height: 1.3; }
+.island-label-home { top: 61%; left: 5%; transform: rotate(-3deg); }
+.island-label-visitor { top: 67%; left: 34%; transform: rotate(2deg); }
+.island-label-relation { top: 70%; right: 4%; transform: rotate(-3deg); }
+.island-collage-caption { position: absolute; right: 10px; bottom: 7px; left: 10px; z-index: 6; margin: 0; padding: 5px 8px; border-top: 1px dashed rgba(167,145,133,.26); color: var(--text-muted); font-size: 8px; line-height: 1.35; text-align: center; pointer-events: none; }
+@media (max-width: 580px) {
+  .island-collage { min-height: 218px; }
+  .island-label { min-width: 66px; padding: 5px 6px; }
+  .island-label small { display: none; }
+  .island-hotspot { min-width: 40px; min-height: 40px; }
+  .island-collage-caption { font-size: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-ring { transition: none; }
+}
+
