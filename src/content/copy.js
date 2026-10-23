@@ -1,8 +1,8 @@
 export const COPY = {
   hero: {
-    label: 'ROBOT WITH CARE · 薛定谔的宠物',
-    title: ['看不见它，', '陪伴仍会发生。'],
-    intro: ['敲击、触摸、等待或倾听。', '光、声音与细微动作，都是它的回答。'],
+    label: 'ROBOT WITH CARE · 不可见的陪伴',
+    title: ['看不见它，', '但它会回应。'],
+    intro: ['敲两下，等一会儿，或靠近一点听。', '每一次轻微回应，都会留下一点线索。'],
   },
   actions: {
     knock: { label: '敲两下', hover: '两下轻敲，是一次邀请。' },
@@ -34,4 +34,5 @@ export const PERSONALITY_COPY = [
   ['curious', '好奇', '它会留意环境变化，再决定要不要靠近。'],
   ['shy', '慢热', '靠近之前，它常常先停一停。'],
 ];
+
 

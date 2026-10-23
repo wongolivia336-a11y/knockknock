@@ -9,6 +9,9 @@ All assets below are local project assets. New raster illustrations were generat
 | `public/assets/stickers/wait-hourglass-sticker.png` | ImageGen; patient hourglass with a small warm light mote, colored-pencil/riso texture, transparent background; resized for UI delivery | 480 × 720 PNG, RGBA, 429 KB | Wait action button and temporary waiting response beside the 3D box | Integrated; transparent alpha verified |
 | `public/assets/stickers/gentle-touch-sticker.png` | ImageGen; softly curled index finger, peach/coral pencil texture, white die-cut edge, transparent background; resized for UI delivery | 480 × 720 PNG, RGBA, 408 KB | Touch action button and temporary touch response beside the 3D box | Integrated; transparent alpha verified |
 | `public/assets/stickers/listening-ear-sticker.png` | ImageGen; ear with three gentle sound waves, warm pastel pencil/riso texture, white die-cut edge, transparent background; resized for UI delivery | 720 × 658 PNG, RGBA, 581 KB | Listen action, temporary listening response, island map and visitor card | Integrated; transparent alpha verified |
+| `public/assets/stickers/island-postcard-sticker.png` | ImageGen; abstract cream postcard with coral mark and soft sound waves, no text, transparent background | Generated PNG, RGBA | Visitor inbox, visitor detail, postcard composer | Integrated in island secondary surfaces |
+| `public/assets/stickers/island-marker-sticker.png` | ImageGen; small paper island shoreline, warm mote and anonymous flag, no building or species, transparent background | Generated PNG, RGBA | Island map and visitor origin detail | Integrated in island map and origin detail |
+| `public/assets/stickers/island-reply-trace-sticker.png` | ImageGen; soft peach/lavender light trace resting over paper stones, transparent background | Generated PNG, RGBA | Relations page delayed-reply header | Integrated in relations secondary screen |
 | `public/assets/knock-knock-logo.svg` | User-provided `knock-knock-logo.svg`, copied as supplied | 1254 × 1254 SVG, single-color path | Header brand icon; paired with the existing live-text wordmark | Integrated |
 
 The island map's new decorative sticker treatment reuses existing assets. A new postcard illustration was not added because generated box imagery in this pass conflicted with the approved seamless shell; map routes, letter content, and visitor interactions remain native SVG/DOM.
@@ -26,3 +29,4 @@ The island map's new decorative sticker treatment reuses existing assets. A new 
 - `public/assets/hand-reaching.png` is a red glowing hand, not the requested calm die-cut tap sticker.
 - `public/assets/personality-stickers.png` includes recognizable animal drawings, which would imply an identity the product must leave unknown.
 - Other legacy collage sheets have not been assumed reusable; each should be inspected and cropped deliberately before integration.
+
