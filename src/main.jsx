@@ -161,6 +161,125 @@ function D3TraitPath({ values }) {
   return <div className="d3-trait-wrap"><svg className="d3-trait" viewBox="0 0 320 96" role="img" aria-label="盒子的变化轨迹"><path d={makeLine(points)} fill="none" stroke="#f2552e" strokeWidth="2" strokeLinecap="round" /><path d={makeLine(points.map(value => Math.max(0, value - 8)))} fill="none" stroke="#8cc8d3" strokeWidth="1" strokeDasharray="2 6" /><g>{points.map((value, index) => <circle key={`${value}-${index}`} cx={x(index)} cy={y(value)} r="3.5" fill={index % 2 ? '#f6d96b' : '#f2552e'} stroke="#2f2a27" strokeWidth="1" />)}</g></svg><div className="d3-axis-labels"><span>靠近</span><span>回来</span><span>发亮</span><span>遇见</span></div></div>;
 }
 
+const COVER_WALL = [
+  { id: 'soft-signal', lines: ['SOFT SIGNAL', 'WARM ARRIVAL'], top: '#b6afd9', bottom: '#bf773f', blobs: ['#d694ae', '#e4a854', '#8f91c4', '#c66d4f'], pattern: 'rays' },
+  { id: 'indie-builders', lines: ['INDIE BUILDERS', 'WEEKLY NOTE'], top: '#98a8b1', bottom: '#342622', blobs: ['#d1b37b', '#bc6344', '#6c8495', '#3a2a2a'], pattern: 'contours' },
+  { id: 'quiet-current', lines: ['QUIET CURRENT', 'DEEP BLUE'], top: '#a8c0cb', bottom: '#123849', blobs: ['#d9d5c2', '#3f7990', '#1c506d', '#7eaeb5'], pattern: 'waves' },
+  { id: 'green-room', lines: ['GREEN ROOM', 'SLOW RETURN'], top: '#b7c6c8', bottom: '#183d35', blobs: ['#a9cfd1', '#7da697', '#365c55', '#b0bd96'], pattern: 'dots' },
+  { id: 'late-night', lines: ['LATE NIGHT', 'SOFT SIGNAL'], top: '#b9b0d8', bottom: '#1f1236', blobs: ['#d59ac5', '#8f6ab6', '#312050', '#e4b1c2'], pattern: 'lens' },
+  { id: 'public-fire', lines: ['BUILD IN', 'PUBLIC'], top: '#b6c0c2', bottom: '#9a4337', blobs: ['#d9d7ca', '#df8d65', '#ad4e45', '#e2b38a'], pattern: null },
+];
+
+function CoverPattern({ kind, id }) {
+  if (!kind) return null;
+  const maskId = `cover-mask-${id}`;
+  const pattern = {
+    rays: <><circle cx="150" cy="100" r="28" /><path d="M150 100 150 0M150 100 245 22M150 100 300 100M150 100 256 182M150 100 150 200M150 100 44 182M150 100 0 100M150 100 45 24" /></>,
+    contours: <><path d="M-20 42c45-36 95-36 140 0s95 36 140 0 95-36 140 0" /><path d="M-20 68c45-36 95-36 140 0s95 36 140 0 95-36 140 0" /><path d="M-20 94c45-36 95-36 140 0s95 36 140 0 95-36 140 0" /><path d="M-20 120c45-36 95-36 140 0s95 36 140 0 95-36 140 0" /><path d="M-20 146c45-36 95-36 140 0s95 36 140 0 95-36 140 0" /><path d="M-20 172c45-36 95-36 140 0s95 36 140 0 95-36 140 0" /></>,
+    waves: <><path d="M0 42c36-30 76-30 112 0s76 30 112 0 76-30 112 0" /><path d="M0 74c36-30 76-30 112 0s76 30 112 0 76-30 112 0" /><path d="M0 106c36-30 76-30 112 0s76 30 112 0 76-30 112 0" /><path d="M0 138c36-30 76-30 112 0s76 30 112 0 76-30 112 0" /><path d="M0 170c36-30 76-30 112 0s76 30 112 0 76-30 112 0" /></>,
+    dots: <><path d="M0 0h300v200H0z" stroke="none" /><g>{Array.from({ length: 48 }, (_, index) => <circle key={index} cx={(index % 8) * 43 + 20} cy={Math.floor(index / 8) * 31 + 18} r="2.2" />)}</g></>,
+    lens: <><ellipse cx="150" cy="100" rx="140" ry="45" /><ellipse cx="150" cy="100" rx="112" ry="36" /><ellipse cx="150" cy="100" rx="82" ry="27" /><ellipse cx="150" cy="100" rx="51" ry="17" /></>,
+  }[kind];
+  return <svg className="cover-pattern" viewBox="0 0 300 200" aria-hidden="true"><defs><radialGradient id={maskId} cx="50%" cy="50%" r="68%"><stop offset="0%" stopColor="black" /><stop offset="48%" stopColor="black" stopOpacity=".35" /><stop offset="82%" stopColor="white" /><stop offset="100%" stopColor="white" /></radialGradient><mask id={`${maskId}-mask`}><rect width="300" height="200" fill={`url(#${maskId})`} /></mask></defs><g mask={`url(#${maskId}-mask)`} fill="none" stroke="white" strokeWidth=".8" strokeOpacity=".34" strokeLinecap="round">{pattern}</g></svg>;
+}
+
+function CoverNoise({ cardRef }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const host = cardRef.current;
+    if (!canvas || !host) return undefined;
+    const draw = () => {
+      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+      const rect = host.getBoundingClientRect();
+      const width = Math.max(1, Math.ceil(rect.width * dpr));
+      const height = Math.max(1, Math.ceil(rect.height * dpr));
+      canvas.width = width;
+      canvas.height = height;
+      const tile = document.createElement('canvas');
+      tile.width = 128 * dpr;
+      tile.height = 128 * dpr;
+      const tileContext = tile.getContext('2d');
+      const noise = tileContext.createImageData(tile.width, tile.height);
+      for (let index = 0; index < noise.data.length; index += 4) {
+        const value = Math.floor(Math.random() * 255);
+        noise.data[index] = value;
+        noise.data[index + 1] = value;
+        noise.data[index + 2] = value;
+        noise.data[index + 3] = 104;
+      }
+      tileContext.putImageData(noise, 0, 0);
+      const context = canvas.getContext('2d');
+      for (let x = 0; x < width; x += tile.width) {
+        for (let y = 0; y < height; y += tile.height) context.drawImage(tile, x, y);
+      }
+    };
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [cardRef]);
+  return <canvas className="cover-noise" ref={canvasRef} aria-hidden="true" />;
+}
+
+function CoverCard({ cover, index }) {
+  const cardRef = useRef(null);
+  const motionRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, targetX: 0, targetY: 0 });
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let frame = 0;
+    let previous = performance.now();
+    const tick = now => {
+      const motion = motionRef.current;
+      const dt = Math.min((now - previous) / 1000, 0.04);
+      previous = now;
+      const stiffness = 70;
+      const damping = 2 * 0.86 * Math.sqrt(stiffness);
+      motion.vx += (motion.targetX - motion.x) * stiffness * dt;
+      motion.vy += (motion.targetY - motion.y) * stiffness * dt;
+      motion.vx -= motion.vx * damping * dt;
+      motion.vy -= motion.vy * damping * dt;
+      motion.x += motion.vx * dt;
+      motion.y += motion.vy * dt;
+      if (cardRef.current) {
+        cardRef.current.style.setProperty('--pointer-x', `${motion.x.toFixed(2)}px`);
+        cardRef.current.style.setProperty('--pointer-y', `${motion.y.toFixed(2)}px`);
+        cardRef.current.style.setProperty('--pattern-x', `${(-motion.x * 0.5).toFixed(2)}px`);
+        cardRef.current.style.setProperty('--pattern-y', `${(-motion.y * 0.5).toFixed(2)}px`);
+        cardRef.current.style.setProperty('--glow-x', `${50 + motion.x * 1.5}%`);
+        cardRef.current.style.setProperty('--glow-y', `${50 + motion.y * 1.5}%`);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const onPointerMove = event => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    motionRef.current.targetX = ((event.clientX - rect.left) / rect.width - 0.5) * 20;
+    motionRef.current.targetY = ((event.clientY - rect.top) / rect.height - 0.5) * 20;
+  };
+  const onPointerLeave = () => {
+    motionRef.current.targetX = 0;
+    motionRef.current.targetY = 0;
+    setHovered(false);
+  };
+  return <article ref={cardRef} className={`cover-card ${hovered ? 'is-hovered' : ''}`} style={{ '--cover-top': cover.top, '--cover-bottom': cover.bottom, '--blob-a': cover.blobs[0], '--blob-b': cover.blobs[1], '--blob-c': cover.blobs[2], '--blob-d': cover.blobs[3], '--delay': `${index * -2.4}s` }} onPointerEnter={() => setHovered(true)} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} aria-label={`${cover.lines[0]} ${cover.lines[1]}`}>
+    <div className="cover-blob blob-a"></div><div className="cover-blob blob-b"></div><div className="cover-blob blob-c"></div><div className="cover-blob blob-d"></div>
+    <CoverNoise cardRef={cardRef} />
+    <CoverPattern kind={cover.pattern} id={cover.id} />
+    <span className="cover-title">{cover.lines[0]}<br />{cover.lines[1]}</span>
+    <span className="cover-index">0{index + 1}</span>
+    <span className="cover-cursor-glow"></span>
+  </article>;
+}
+
+function CoverWall() {
+  return <section className="cover-wall" aria-label="六张盒群岛封面"><div className="cover-wall-heading"><span className="eyebrow">盒群岛 / SIX QUIET WORLDS</span><h2>每一次回应，都有自己的封面。</h2><p>把光标放上去，色团会靠近你，纹样会往后退一点。</p></div><div className="cover-grid">{COVER_WALL.map((cover, index) => <CoverCard key={cover.id} cover={cover} index={index} />)}</div></section>;
+}
+
 function UnknownBoxScene({ feedback, onTouch }) {
   const mountRef = useRef(null);
   const feedbackRef = useRef(feedback);
@@ -176,7 +295,7 @@ function UnknownBoxScene({ feedback, onTouch }) {
     let renderer;
     try {
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#e9ddcc');
+      scene.background = new THREE.Color('#dce5e8');
       const camera = new THREE.OrthographicCamera(-5.2, 5.2, 3.2, -3.2, 0.1, 100);
       camera.position.set(4.6, 3.2, 7.4);
       camera.lookAt(0, -0.2, 0);
@@ -190,33 +309,33 @@ function UnknownBoxScene({ feedback, onTouch }) {
       renderer.toneMappingExposure = 1.05;
       mount.appendChild(renderer.domElement);
 
-      const ambient = new THREE.HemisphereLight('#fff8eb', '#9a806d', 2.1);
+      const ambient = new THREE.HemisphereLight('#f9fdff', '#68767d', 1.9);
       scene.add(ambient);
-      const key = new THREE.DirectionalLight('#ffe5b9', 4.2);
+      const key = new THREE.DirectionalLight('#dcecf1', 3.4);
       key.position.set(-3, 6, 5);
       key.castShadow = true;
       key.shadow.mapSize.set(1024, 1024);
       scene.add(key);
-      const fill = new THREE.PointLight('#e3b8a5', 0.8, 9);
+      const fill = new THREE.PointLight('#a6c8d1', 0.7, 9);
       fill.position.set(3, 1.7, 2.5);
       scene.add(fill);
 
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 8, 0.18), new THREE.MeshStandardMaterial({ color: '#f1e5d5', roughness: 1 }));
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 8, 0.18), new THREE.MeshStandardMaterial({ color: '#e8eef0', roughness: 1 }));
       wall.position.set(0, 2.8, -2.9);
       wall.receiveShadow = true;
       scene.add(wall);
-      const deskMaterial = new THREE.MeshStandardMaterial({ color: '#ad7c5e', roughness: 0.92 });
+      const deskMaterial = new THREE.MeshStandardMaterial({ color: '#7f716a', roughness: 0.92 });
       const desk = new THREE.Mesh(new THREE.BoxGeometry(16, 0.42, 5.5), deskMaterial);
       desk.position.set(0, -1.34, 0.1);
       desk.receiveShadow = true;
       desk.castShadow = true;
       scene.add(desk);
-      const deskEdge = new THREE.Mesh(new THREE.BoxGeometry(16, 0.95, 0.18), new THREE.MeshStandardMaterial({ color: '#855c47', roughness: 1 }));
+      const deskEdge = new THREE.Mesh(new THREE.BoxGeometry(16, 0.95, 0.18), new THREE.MeshStandardMaterial({ color: '#5e514d', roughness: 1 }));
       deskEdge.position.set(0, -1.82, 2.72);
       scene.add(deskEdge);
 
-      const propMaterial = new THREE.MeshStandardMaterial({ color: '#e8dbc8', roughness: 0.95 });
-      const darkPropMaterial = new THREE.MeshStandardMaterial({ color: '#514842', roughness: 0.9 });
+      const propMaterial = new THREE.MeshStandardMaterial({ color: '#e4e9e9', roughness: 0.95 });
+      const darkPropMaterial = new THREE.MeshStandardMaterial({ color: '#354047', roughness: 0.9 });
       const bookData = [
         [-3.55, -0.96, 0.42, 1.8, 0.23, '#c8a488'],
         [-3.55, -0.73, 0.5, 1.65, 0.2, '#e7d9c5'],
@@ -237,11 +356,11 @@ function UnknownBoxScene({ feedback, onTouch }) {
       cupLip.rotation.x = Math.PI / 2;
       cupLip.position.set(3.72, -0.66, 1.0);
       scene.add(cupLip);
-      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.48, 20), new THREE.MeshStandardMaterial({ color: '#c4a47f', roughness: 1 }));
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.48, 20), new THREE.MeshStandardMaterial({ color: '#9ba8a8', roughness: 1 }));
       pot.position.set(-4.1, -0.92, -1.0);
       pot.castShadow = true;
       scene.add(pot);
-      const leafMaterial = new THREE.MeshStandardMaterial({ color: '#65705b', roughness: 1 });
+      const leafMaterial = new THREE.MeshStandardMaterial({ color: '#536b67', roughness: 1 });
       [[-4.25, -0.24, -1.03, 0.52], [-3.95, -0.18, -1.03, -0.7], [-4.15, 0.18, -1.03, 0.35]].forEach(([x, y, z, r]) => {
         const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 8), leafMaterial);
         leaf.position.set(x, y, z);
@@ -254,11 +373,11 @@ function UnknownBoxScene({ feedback, onTouch }) {
       const stage = new THREE.Group();
       stage.position.set(0.05, 0, 0.25);
       scene.add(stage);
-      const boxMaterial = new THREE.MeshStandardMaterial({ color: '#d8c7ae', roughness: 0.96, metalness: 0.01 });
-      const lidMaterial = new THREE.MeshStandardMaterial({ color: '#eadcc8', roughness: 0.97, metalness: 0.01 });
-      const signalMaterial = new THREE.MeshStandardMaterial({ color: '#e5bf59', emissive: '#b86e42', emissiveIntensity: 0.11, roughness: 0.6 });
-      const seamMaterial = new THREE.MeshBasicMaterial({ color: '#8b6d5a' });
-      const signalRingMaterial = new THREE.MeshBasicMaterial({ color: '#d96548', transparent: true, opacity: 0.22 });
+      const boxMaterial = new THREE.MeshStandardMaterial({ color: '#bcc8c9', roughness: 0.84, metalness: 0.01 });
+      const lidMaterial = new THREE.MeshStandardMaterial({ color: '#e7eceb', roughness: 0.88, metalness: 0.01 });
+      const signalMaterial = new THREE.MeshStandardMaterial({ color: '#f0bd6a', emissive: '#b45b45', emissiveIntensity: 0.1, roughness: 0.6 });
+      const seamMaterial = new THREE.MeshBasicMaterial({ color: '#657277' });
+      const signalRingMaterial = new THREE.MeshBasicMaterial({ color: '#e76f4f', transparent: true, opacity: 0.2 });
       const box = new THREE.Mesh(new RoundedBoxGeometry(2.52, 1.74, 2.18, 5, 0.12), boxMaterial);
       box.position.y = -0.03;
       box.castShadow = true;
@@ -357,6 +476,7 @@ function App() {
   const [state, setState] = useState(loadState);
   const [tab, setTab] = useState('box');
   const [feedback, setFeedback] = useState({ type: 'idle', stamp: Date.now() - 2000 });
+  const [hoverAction, setHoverAction] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('它在等你靠近。');
   const responseTimerRef = useRef(null);
@@ -435,6 +555,11 @@ function App() {
     profile: ['', '它最近的样子', '不是答案，只是一些靠近过的痕迹。'],
   };
   const [sectionLabel, sectionTitle, sectionCopy] = phoneTitles[tab];
+  const hoverCopy = {
+    knock: ['敲两下', '轻轻邀请它回答'],
+    wait: ['等一会', '把决定留给它'],
+    touch: ['摸一下', '只靠近，不催促'],
+  }[hoverAction] || ['把光标放到插画上', '从靠近开始'];
 
   return <div className="app-shell">
     <header className="app-header">
@@ -450,17 +575,23 @@ function App() {
           <UnknownBoxScene feedback={feedback} onTouch={touchBox} />
           <ScribbleLayer />
           <img className="hand-overlay" src="/assets/hand-reaching.png" alt="一只正在靠近未知盒的手绘手" />
+          <div className="scene-hover-actions" aria-label="把光标放到插画上来互动">
+            <button className="scene-hover-action action-knock" type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('knock')} onBlur={() => setHoverAction(null)} aria-label="敲两下">
+              <span className="hover-glyph glyph-knock"><i></i><i></i></span><small>敲两下</small>
+            </button>
+            <button className="scene-hover-action action-wait" type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('wait')} onBlur={() => setHoverAction(null)} aria-label="等一会">
+              <span className="hover-glyph glyph-wait"><i></i></span><small>等一会</small>
+            </button>
+            <button className="scene-hover-action action-touch" type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('touch')} onBlur={() => setHoverAction(null)} aria-label="摸一下">
+              <span className="hover-glyph glyph-touch"><i></i></span><small>摸一下</small>
+            </button>
+          </div>
           <div className="concept-cross"><span>×</span><div>薛定谔的盒子<small>看不见，但有回应</small></div></div>
           <div className="scene-caption"><span>touch the box</span><span>轻一点</span></div>
         </div>
         <div className="scene-controls">
-          <div className="scene-control-head"><span className="eyebrow">你想怎么靠近？</span><span className="signal-readout"><span className="live-dot"></span><small>{feedback.type === 'reply' ? '有回应' : '很安静'}</small></span></div>
-          <div className="action-grid">
-            <button className="action-button primary-action" disabled={busy} onClick={() => doInteraction('knock')}><b>敲两下</b><span>然后停下来</span></button>
-            <button className="action-button" disabled={busy} onClick={() => doInteraction('wait')}><b>等一会</b><span>让它自己回来</span></button>
-            <button className="action-button" disabled={busy} onClick={() => doInteraction('touch')}><b>摸一下</b><span>只是邀请</span></button>
-          </div>
-          <div className="scene-message"><strong>{message}</strong><small>光、声音、很细小的动作，都是回答。</small></div>
+          <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><span className="signal-readout"><span className="live-dot"></span><small>{feedback.type === 'reply' ? '有回应' : '很安静'}</small></span></div>
+          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small></div>
         </div>
       </section>
 
@@ -476,10 +607,9 @@ function App() {
               </section>
 
               {tab === 'box' && <section className="phone-home">
-                <div className="phone-note"><span className="mini-icon orange"><Icon name="light" /></span><div><strong>今天的回应</strong><small>{state.lastEvent}</small></div><span className="note-arrow">↗</span></div>
-                <div className="phone-grid-cards">
-                  <div className="phone-mini-card"><span className="mini-icon yellow"><Icon name="relation" /></span><b>{state.interactions}</b><small>相处次数</small></div>
-                  <div className="phone-mini-card"><span className="mini-icon blue"><Icon name="evidence" /></span><b>{state.badges.length}</b><small>已留下的章</small></div>
+                <div className="phone-signal-row"><span className="signal-orb"><Icon name="light" /></span><div><strong>今天的回应</strong><small>{state.lastEvent}</small></div><span className="note-arrow">↗</span></div>
+                <div className="phone-inline-stats">
+                  <span><b>{state.interactions}</b><small>相处次数</small></span><span><b>{state.badges.length}</b><small>留下的章</small></span><span><b>{Math.max(18, state.expression)}%</b><small>今天的光</small></span>
                 </div>
                 <div className="phone-section-line"><span>今天可以</span><span>不用急</span></div>
                 <div className="care-list">
@@ -487,7 +617,7 @@ function App() {
                   <div><span className="list-icon">02</span><span><b>留白</b><small>等它自己决定</small></span><em className="pending">现在</em></div>
                   <div><span className="list-icon">03</span><span><b>记录</b><small>把回应收进证据册</small></span><em>→</em></div>
                 </div>
-                <div className="presence-strip"><img src="/assets/presence-stickers.png" alt="手、耳朵、眼睛和未知盒的手绘贴纸" /></div>
+                <div className="box-art-strip"><img src="/assets/unknown-box-home.png" alt="未知盒的手绘插画" /></div>
                 <div className="phone-response-meter"><div><span>今天的光</span><b>{Math.max(18, state.expression)}%</b></div><i><em style={{ width: `${Math.max(18, state.expression)}%` }}></em></i></div>
               </section>}
 
@@ -502,6 +632,8 @@ function App() {
         </div>
       </section>
     </main>
+
+    <CoverWall />
 
   </div>;
 }
