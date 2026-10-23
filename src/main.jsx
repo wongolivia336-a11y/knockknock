@@ -472,6 +472,9 @@ const BOX_FRAGMENT_SHADER = `
   uniform vec3 uInteractionPosition;
   uniform vec3 uInteractionColor;
   uniform float uInteractionStrength;
+  uniform vec3 uShellColor;
+  uniform float uShellStrength;
+  uniform float uShellSubsurface;
   uniform float uDebugReveal;
   varying vec3 vLocalPosition;
   varying vec3 vLocalNormal;
@@ -554,19 +557,22 @@ const BOX_FRAGMENT_SHADER = `
     vec3 viewDirection = normalize(vViewPosition);
     float edgeLight = pow(1.0 - max(dot(normalize(vLocalNormal), normalize(vec3(-0.1, 0.48, 0.86))), 0.0), 1.65);
     float grain = (microGrain - 0.5) * uGrain;
-    vec3 atmosphere = mix(uBaseColor, uAtmosphereColor, uAtmosphereStrength * (0.5 + lowFrequency * 0.25));
-    vec3 surfaceColor = atmosphere * (diffuse * 0.92 + (lowFrequency - 0.5) * 0.055 + edgeLight * 0.035);
+    vec3 atmosphere = mix(uShellColor, uAtmosphereColor, uAtmosphereStrength * (0.34 + lowFrequency * 0.16));
+    vec3 matteShell = uShellColor * (0.86 + diffuse * 0.14 + (lowFrequency - 0.5) * 0.018);
+    vec3 subsurface = mix(matteShell, atmosphere * (0.9 + diffuse * 0.08), uShellSubsurface);
+    vec3 surfaceColor = mix(matteShell, subsurface, 0.72) * uShellStrength;
+    surfaceColor += uShellColor * (0.025 + edgeLight * 0.02);
     float fieldBlend = clamp(fieldAmount * (0.9 + uIntensity * 0.2), 0.0, 0.94);
-    vec3 shell = vec3(0.86, 0.82, 0.76) * (0.88 + diffuse * 0.12);
-    float opticalMix = clamp(0.42 + fieldAmount * 0.55, 0.42, 0.96);
+    vec3 shell = uShellColor * (0.94 + diffuse * 0.06) * uShellStrength;
+    float opticalMix = clamp(0.32 + fieldAmount * 0.5, 0.32, 0.86);
     vec3 localFieldColor = clamp(weightedField * (0.9 + uIntensity * 0.4) + fieldColor * 0.5 + uInteractionColor * interactionAmount * 0.5, 0.0, 1.0);
-    vec3 color = mix(surfaceColor * 1.04, localFieldColor, opticalMix);
-    color = mix(color, mix(surfaceColor * 0.96, fieldColor, fieldBlend), 0.1 + fieldAmount * 0.08);
-    color = mix(color, shell, 0.055 + edgeLight * 0.055);
+    vec3 color = mix(surfaceColor, localFieldColor, opticalMix);
+    color = mix(color, mix(surfaceColor, fieldColor, fieldBlend), 0.08 + fieldAmount * 0.06);
+    color = mix(color, shell, 0.12 + edgeLight * 0.08);
     float sideFace = smoothstep(0.24, 0.92, max(n.x, 0.0));
     float topFace = smoothstep(0.24, 0.92, max(n.y, 0.0));
-    color *= mix(vec3(1.0), vec3(0.84, 0.85, 0.86), sideFace);
-    color *= mix(vec3(1.0), vec3(1.045, 1.025, 0.99), topFace);
+    color *= mix(vec3(1.0), vec3(0.94, 0.935, 0.92), sideFace);
+    color *= mix(vec3(1.0), vec3(1.035, 1.025, 1.0), topFace);
     color += fieldColor * min(0.11, totalWeight * 0.15);
     color += clamp(weightedField * (0.14 + uIntensity * 0.1), 0.0, 0.28);
     color += fieldColor * 0.065 * mediumNoise;
@@ -647,6 +653,9 @@ function createBoxMaterial(baseColor, objectOffset, lightField) {
       uInteractionPosition: lightField.uInteractionPosition,
       uInteractionColor: lightField.uInteractionColor,
       uInteractionStrength: lightField.uInteractionStrength,
+      uShellColor: lightField.uShellColor,
+      uShellStrength: lightField.uShellStrength,
+      uShellSubsurface: lightField.uShellSubsurface,
       uDebugReveal: lightField.uDebugReveal,
     },
     vertexShader: BOX_VERTEX_SHADER,
@@ -713,10 +722,13 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         uInteractionPosition: { value: new THREE.Vector3(0.08, 0.05, 0.54) },
         uInteractionColor: { value: new THREE.Color('#e5b8bc') },
         uInteractionStrength: { value: 0.2 },
+        uShellColor: { value: new THREE.Color('#F8F4EB') },
+        uShellStrength: { value: 1.0 },
+        uShellSubsurface: { value: 0.28 },
         uDebugReveal: { value: debugFieldOnly ? 1 : 0 },
       };
       const boxOffset = new THREE.Vector3(0, 0, 0);
-      const boxMaterial = createBoxMaterial('#F1EAE1', boxOffset, lightField);
+      const boxMaterial = createBoxMaterial('#F8F4EB', boxOffset, lightField);
       const box = new THREE.Mesh(new RoundedBoxGeometry(3.45, 3.35, 2.65, 18, 0.4), boxMaterial);
       box.position.set(0, 0.04, 0);
       box.userData.kind = 'box';
@@ -1048,38 +1060,51 @@ function MiniBoxArt({ preset }) {
   return <svg className="mini-box-art" viewBox="0 0 220 82" role="img" aria-label="一体成型的柔光盒子"><defs><linearGradient id="mini-box-gradient" x1=".12" y1=".2" x2=".94" y2=".9"><stop offset="0" stopColor={colorA} stopOpacity=".8" /><stop offset=".55" stopColor={colorB} stopOpacity=".72" /><stop offset="1" stopColor={preset.colors.blobs[2]} stopOpacity=".62" /></linearGradient><linearGradient id="mini-box-face" x1=".1" y1="0" x2=".9" y2="1"><stop stopColor="#fffaf3" stopOpacity=".82" /><stop offset="1" stopColor="#eadfd5" stopOpacity=".52" /></linearGradient></defs><path d="M57 23q0-4 4-5l49-10q3-.6 6 0l52 13q4 1 4 5v34q0 4-4 5l-49 10q-3 .6-6 0L61 62q-4-1-4-5Z" fill="url(#mini-box-gradient)" stroke="#8f837b" strokeOpacity=".45" strokeWidth="1" /><path d="m61 20 50-10q3-.6 6 0l52 13-54 12Z" fill="url(#mini-box-face)" opacity=".8" /><path d="m115 35 54-12v34q0 4-4 5l-50 10Z" fill={preset.colors.blobs[2]} opacity=".24" /><path d="M69 28c17-6 27-7 42-3 13 4 24 3 38-3" fill="none" stroke="#fffaf3" strokeOpacity=".42" strokeWidth="4" strokeLinecap="round" /></svg>;
 }
 
-function IslandMap() {
-  return <svg className="island-map-svg" viewBox="0 0 320 180" role="img" aria-label="盒群岛地图">
-    <defs>
-      <linearGradient id="island-sea" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f4f3e9" /><stop offset="1" stopColor="#eaf1e9" /></linearGradient>
-      <linearGradient id="island-sand" x1="0" y1="0" x2=".9" y2="1"><stop stopColor="#fffaf0" /><stop offset="1" stopColor="#eadfc9" /></linearGradient>
-      <linearGradient id="island-peach" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#f7d897" /><stop offset="1" stopColor="#e9bd85" /></linearGradient>
-      <linearGradient id="island-sage" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#d3e2d3" /><stop offset="1" stopColor="#a8c5bc" /></linearGradient>
-      <linearGradient id="island-lilac" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#e8d8e8" /><stop offset="1" stopColor="#c9b6d1" /></linearGradient>
-    </defs>
-    <rect className="map-sea" x="2" y="2" width="316" height="176" rx="28" fill="url(#island-sea)" />
-    <path className="map-water-line" d="M8 127c28-17 47-17 75-7 23 8 44 7 66-3 25-12 42-9 62 1 27 14 57 10 101-17" />
-    <path className="map-water-line dashed" d="M18 54c28-13 48-10 70 1 25 13 45 15 67 5 23-11 40-10 60 2 24 14 49 14 83 2" />
-    <path className="map-route" d="M65 102c17-14 33-20 50-18 18 2 27 15 43 13 17-2 24-21 42-24 19-3 29 13 44 12 13-1 21-8 31-19" />
-    <path className="map-route map-route-short" d="M103 51c10 14 18 19 30 21 14 2 23-5 35-3 10 1 17 7 25 13" />
-    <g className="map-island island-main">
-      <path className="map-land" d="M39 105c-8-7-10-15-4-22 4-5 11-8 20-8 3-11 13-17 24-15 9 1 15 7 17 15 11-3 20 3 21 12 1 7-4 13-12 16 1 8-6 14-16 15-8 1-15-2-19-7-10 5-25 3-31-6Z" />
-      <path className="map-land-detail" d="M54 87c8-8 18-10 26-7 5 2 8 5 11 9M64 108c11 4 20 3 28-2" />
-      <path className="map-shoreline" d="M43 105c9 7 17 8 27 5" />
-    </g>
-    <g className="map-island island-neighbor">
-      <path className="map-land" d="M166 65c-7-6-8-13-3-19 4-4 10-6 17-4 3-8 10-12 19-10 7 2 11 7 11 13 9-1 15 4 15 11 0 6-4 10-10 12 0 7-6 11-13 11-7 0-12-2-15-6-8 4-17 1-21-8Z" />
-      <path className="map-land-detail" d="M178 52c8-5 16-5 23 0" />
-      <circle className="map-house" cx="194" cy="66" r="3.5" />
-    </g>
-    <g className="map-island island-quiet">
-      <path className="map-land" d="M231 119c-6-6-7-12-2-17 4-4 9-5 15-3 3-7 9-10 16-8 6 2 9 6 9 11 8-1 13 3 13 9 0 5-4 9-9 10 0 6-5 10-11 10s-10-2-13-5c-7 3-14 0-18-7Z" />
-      <path className="map-land-detail" d="M244 115c6-4 13-4 19 0" />
-      <path className="map-house" d="M255 108v11m-4-7 4-4 4 4" />
-    </g>
-    <g className="map-stamp"><circle cx="80" cy="111" r="9" /><path d="m76 111 3 3 5-6" /></g>
-    <g className="map-postcard"><path d="m130 115 17-6 10 9-17 6Z" /><path d="m138 114 4 4 5-6" /></g>
-  </svg>;
+function StickerArtworkLayer() {
+  return <div className="sticker-art-layer" aria-hidden="true">
+    <div className="island-composition island-composition-home">
+      <img src="/assets/stickers/island-marker-sticker.png" alt="" />
+      <img src="/assets/stickers/unknown-presence-sticker.png" alt="" />
+      <span className="sticker-spark sticker-spark-one"></span>
+      <span className="sticker-spark sticker-spark-two"></span>
+    </div>
+    <div className="island-composition island-composition-visitor">
+      <img src="/assets/stickers/island-postcard-sticker.png" alt="" />
+      <img src="/assets/stickers/listening-ear-sticker.png" alt="" />
+    </div>
+    <div className="island-composition island-composition-relation">
+      <img src="/assets/stickers/island-reply-trace-sticker.png" alt="" />
+      <img src="/assets/stickers/unknown-presence-sticker.png" alt="" />
+      <span className="sticker-spark sticker-spark-three"></span>
+    </div>
+  </div>;
+}
+
+function IslandHotspotLayer({ onOpenHearing, onOpenVisitors, onOpenRelations }) {
+  return <div className="island-hotspot-layer" aria-label="盒群岛入口">
+    <button className="island-hotspot island-hotspot-home" type="button" onClick={onOpenHearing} aria-label="听见我的盒子附近的声音"><span className="hotspot-ring" /></button>
+    <button className="island-hotspot island-hotspot-visitor" type="button" onClick={onOpenVisitors} aria-label="查看今天的匿名来访"><span className="hotspot-ring" /></button>
+    <button className="island-hotspot island-hotspot-relation" type="button" onClick={onOpenRelations} aria-label="查看关系光痕"><span className="hotspot-ring" /></button>
+  </div>;
+}
+
+function IslandLabels() {
+  return <div className="island-labels" aria-hidden="true">
+    <div className="island-label island-label-home"><span>我的盒子</span><strong>听见</strong><small>从这里开始靠近</small></div>
+    <div className="island-label island-label-visitor"><span>今日来访</span><strong>声音明信片</strong><small>一段匿名的观察</small></div>
+    <div className="island-label island-label-relation"><span>关系光痕</span><strong>慢慢抵达</strong><small>不必变成聊天</small></div>
+  </div>;
+}
+
+function IslandCollage({ onOpenHearing, onOpenVisitors, onOpenRelations }) {
+  return <div className="island-collage" role="group" aria-label="由纸质贴纸组成的盒群岛">
+    <div className="collage-paper-grain" aria-hidden="true" />
+    <div className="collage-routes" aria-hidden="true"><i className="collage-route collage-route-one" /><i className="collage-route collage-route-two" /></div>
+    <StickerArtworkLayer />
+    <IslandHotspotLayer onOpenHearing={onOpenHearing} onOpenVisitors={onOpenVisitors} onOpenRelations={onOpenRelations} />
+    <IslandLabels />
+    <p className="island-collage-caption">三座小岛，三种靠近方式。先听见，再决定要不要留下。</p>
+  </div>;
 }
 
 const ISLAND_VISITORS = [
@@ -1400,7 +1425,7 @@ function App() {
                   <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出一段声音</button>
                   <p className="island-privacy-note">演示中的访客与回信来自本地示例数据，不是实时在线用户。</p>
                 </section> : <section className="phone-island">
-                 <div className="island-art-card"><IslandMap /><img className="island-sticker island-sticker-glow" src="/assets/stickers/unknown-presence-sticker.png" alt="抽象的未知陪伴贴纸" /><img className="island-sticker island-sticker-marker" src="/assets/stickers/island-marker-sticker.png" alt="小岛标记贴纸" /></div>
+                 <div className="island-art-card"><IslandCollage onOpenHearing={() => setIslandHearingOpen(true)} onOpenVisitors={() => setIslandView('visitors')} onOpenRelations={() => setIslandView('relations')} /></div>
                   <div className="island-icon-grid"><button type="button" onClick={() => setIslandHearingOpen(true)} aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button type="button" onClick={() => setIslandView('visitors')} aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button type="button" onClick={() => setIslandView('relations')} aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div>
                  <div className="phone-section-line"><span>今日来访</span><span>{ISLAND_VISITORS.length} 张声音明信片</span></div>
                  <div className="postcard island-postcard-preview"><SignalWave active /><small>047 号盒子 · 主人捎来一段晚归后的观察</small></div>
