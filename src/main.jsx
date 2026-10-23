@@ -280,6 +280,81 @@ function CoverWall() {
   return <section className="cover-wall" aria-label="六张盒群岛封面"><div className="cover-wall-heading"><span className="eyebrow">盒群岛 / SIX QUIET WORLDS</span><h2>每一次回应，都有自己的封面。</h2><p>把光标放上去，色团会靠近你，纹样会往后退一点。</p></div><div className="cover-grid">{COVER_WALL.map((cover, index) => <CoverCard key={cover.id} cover={cover} index={index} />)}</div></section>;
 }
 
+const BOX_VERTEX_SHADER = `
+  varying vec3 vLocalPosition;
+  varying vec3 vLocalNormal;
+  void main() {
+    vLocalPosition = position;
+    vLocalNormal = normal;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const BOX_FRAGMENT_SHADER = `
+  precision highp float;
+  uniform vec3 uBaseColor;
+  uniform float uTime;
+  uniform vec3 uObjectOffset;
+  uniform vec3 uLightPositions[3];
+  uniform vec3 uLightColors[3];
+  uniform float uLightIntensities[3];
+  uniform float uLightRadii[3];
+  varying vec3 vLocalPosition;
+  varying vec3 vLocalNormal;
+
+  float hash(vec3 p) {
+    p = fract(p * 0.3183099 + vec3(0.1, 0.7, 0.3));
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+
+  float softNoise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = smoothstep(0.0, 1.0, fract(p));
+    return mix(mix(mix(hash(i), hash(i + vec3(1.0, 0.0, 0.0)), f.x), mix(hash(i + vec3(0.0, 1.0, 0.0)), hash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(hash(i + vec3(0.0, 0.0, 1.0)), hash(i + vec3(1.0, 0.0, 1.0)), f.x), mix(hash(i + vec3(0.0, 1.0, 1.0)), hash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+  }
+
+  void main() {
+    vec3 p = vLocalPosition + uObjectOffset;
+    vec3 n = normalize(vLocalNormal);
+    vec3 key = normalize(vec3(-0.42, 0.86, 0.66));
+    float diffuse = 0.72 + max(dot(n, key), 0.0) * 0.22;
+    vec3 field = vec3(0.0);
+
+    for (int i = 0; i < 3; i++) {
+      vec3 delta = p - uLightPositions[i];
+      float distanceSquared = dot(delta, delta);
+      float radius = uLightRadii[i];
+      float halo = exp(-distanceSquared / (2.0 * radius * radius));
+      float coreRadius = radius * 0.42;
+      float core = exp(-distanceSquared / (2.0 * coreRadius * coreRadius));
+      float wrap = 0.62 + 0.38 * max(dot(normalize(-delta + vec3(0.0001)), n), 0.0);
+      field += uLightColors[i] * (halo * 0.72 + core * 0.28) * uLightIntensities[i] * wrap;
+    }
+
+    float grain = (softNoise(p * 8.0 + uTime * 0.035) - 0.5) * 0.014;
+    vec3 color = uBaseColor * diffuse + field * 0.62 + vec3(grain);
+    color += field * 0.055 * softNoise(p * 3.0 + uTime * 0.08);
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+function createBoxMaterial(baseColor, objectOffset, lightField) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uBaseColor: { value: new THREE.Color(baseColor) },
+      uObjectOffset: { value: objectOffset },
+      uTime: lightField.uTime,
+      uLightPositions: lightField.uLightPositions,
+      uLightColors: lightField.uLightColors,
+      uLightIntensities: lightField.uLightIntensities,
+      uLightRadii: lightField.uLightRadii,
+    },
+    vertexShader: BOX_VERTEX_SHADER,
+    fragmentShader: BOX_FRAGMENT_SHADER,
+  });
+}
+
 function UnknownBoxScene({ feedback, onTouch }) {
   const mountRef = useRef(null);
   const feedbackRef = useRef(feedback);
@@ -295,124 +370,92 @@ function UnknownBoxScene({ feedback, onTouch }) {
     let renderer;
     try {
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#dce5e8');
-      const camera = new THREE.OrthographicCamera(-5.2, 5.2, 3.2, -3.2, 0.1, 100);
-      camera.position.set(4.6, 3.2, 7.4);
-      camera.lookAt(0, -0.2, 0);
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
+      const camera = new THREE.OrthographicCamera(-3.6, 3.6, 2.7, -2.7, 0.1, 100);
+      camera.position.set(3.65, 2.45, 6.4);
+      camera.lookAt(0, 0.04, 0);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setClearColor(0x000000, 0);
       renderer.setSize(mount.clientWidth, mount.clientHeight);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.05;
+      renderer.toneMappingExposure = 1.04;
       mount.appendChild(renderer.domElement);
 
-      const ambient = new THREE.HemisphereLight('#f9fdff', '#68767d', 1.9);
-      scene.add(ambient);
-      const key = new THREE.DirectionalLight('#dcecf1', 3.4);
-      key.position.set(-3, 6, 5);
-      key.castShadow = true;
-      key.shadow.mapSize.set(1024, 1024);
-      scene.add(key);
-      const fill = new THREE.PointLight('#a6c8d1', 0.7, 9);
-      fill.position.set(3, 1.7, 2.5);
-      scene.add(fill);
-
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 8, 0.18), new THREE.MeshStandardMaterial({ color: '#e8eef0', roughness: 1 }));
-      wall.position.set(0, 2.8, -2.9);
-      wall.receiveShadow = true;
-      scene.add(wall);
-      const deskMaterial = new THREE.MeshStandardMaterial({ color: '#7f716a', roughness: 0.92 });
-      const desk = new THREE.Mesh(new THREE.BoxGeometry(16, 0.42, 5.5), deskMaterial);
-      desk.position.set(0, -1.34, 0.1);
-      desk.receiveShadow = true;
-      desk.castShadow = true;
-      scene.add(desk);
-      const deskEdge = new THREE.Mesh(new THREE.BoxGeometry(16, 0.95, 0.18), new THREE.MeshStandardMaterial({ color: '#5e514d', roughness: 1 }));
-      deskEdge.position.set(0, -1.82, 2.72);
-      scene.add(deskEdge);
-
-      const propMaterial = new THREE.MeshStandardMaterial({ color: '#e4e9e9', roughness: 0.95 });
-      const darkPropMaterial = new THREE.MeshStandardMaterial({ color: '#354047', roughness: 0.9 });
-      const bookData = [
-        [-3.55, -0.96, 0.42, 1.8, 0.23, '#c8a488'],
-        [-3.55, -0.73, 0.5, 1.65, 0.2, '#e7d9c5'],
-        [-3.55, -0.53, 0.55, 1.45, 0.18, '#7c6760'],
-      ];
-      bookData.forEach(([x, y, z, w, h, color], index) => {
-        const book = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.35), new THREE.MeshStandardMaterial({ color, roughness: 0.96 }));
-        book.position.set(x, y, z);
-        book.rotation.z = index === 1 ? -0.04 : 0.02;
-        book.castShadow = true;
-        scene.add(book);
-      });
-      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.56, 32), propMaterial);
-      cup.position.set(3.72, -0.95, 1.0);
-      cup.castShadow = true;
-      scene.add(cup);
-      const cupLip = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.025, 10, 32), darkPropMaterial);
-      cupLip.rotation.x = Math.PI / 2;
-      cupLip.position.set(3.72, -0.66, 1.0);
-      scene.add(cupLip);
-      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.28, 0.48, 20), new THREE.MeshStandardMaterial({ color: '#9ba8a8', roughness: 1 }));
-      pot.position.set(-4.1, -0.92, -1.0);
-      pot.castShadow = true;
-      scene.add(pot);
-      const leafMaterial = new THREE.MeshStandardMaterial({ color: '#536b67', roughness: 1 });
-      [[-4.25, -0.24, -1.03, 0.52], [-3.95, -0.18, -1.03, -0.7], [-4.15, 0.18, -1.03, 0.35]].forEach(([x, y, z, r]) => {
-        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 8), leafMaterial);
-        leaf.position.set(x, y, z);
-        leaf.scale.set(0.25, 0.68, 0.12);
-        leaf.rotation.z = r;
-        leaf.castShadow = true;
-        scene.add(leaf);
-      });
-
       const stage = new THREE.Group();
-      stage.position.set(0.05, 0, 0.25);
       scene.add(stage);
-      const boxMaterial = new THREE.MeshStandardMaterial({ color: '#bcc8c9', roughness: 0.84, metalness: 0.01 });
-      const lidMaterial = new THREE.MeshStandardMaterial({ color: '#e7eceb', roughness: 0.88, metalness: 0.01 });
-      const signalMaterial = new THREE.MeshStandardMaterial({ color: '#f0bd6a', emissive: '#b45b45', emissiveIntensity: 0.1, roughness: 0.6 });
-      const seamMaterial = new THREE.MeshBasicMaterial({ color: '#657277' });
-      const signalRingMaterial = new THREE.MeshBasicMaterial({ color: '#e76f4f', transparent: true, opacity: 0.2 });
-      const box = new THREE.Mesh(new RoundedBoxGeometry(2.52, 1.74, 2.18, 5, 0.12), boxMaterial);
-      box.position.y = -0.03;
-      box.castShadow = true;
-      box.receiveShadow = true;
+      const lightField = {
+        uTime: { value: 0 },
+        uLightPositions: { value: [new THREE.Vector3(0.08, 0.05, 0.68), new THREE.Vector3(-0.3, 0.2, 0.12), new THREE.Vector3(0.25, 0.35, -0.5)] },
+        uLightColors: { value: [new THREE.Color('#E8B46B'), new THREE.Color('#D98E7B'), new THREE.Color('#9EBBC5')] },
+        uLightIntensities: { value: [1.08, 0.48, 0.28] },
+        uLightRadii: { value: [1.06, 1.46, 0.84] },
+      };
+      const boxOffset = new THREE.Vector3(0, -0.03, 0);
+      const lidOffset = new THREE.Vector3(0, 0.98, 0.02);
+      const boxMaterial = createBoxMaterial('#c7d0d1', boxOffset, lightField);
+      const lidMaterial = createBoxMaterial('#e5ebea', lidOffset, lightField);
+      const box = new THREE.Mesh(new RoundedBoxGeometry(2.52, 1.74, 2.18, 6, 0.14), boxMaterial);
+      box.position.copy(boxOffset);
       box.userData.kind = 'box';
       stage.add(box);
-      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.28, 0.25, 1.92, 5, 0.1), lidMaterial);
-      lid.position.set(0, 0.98, 0.02);
-      lid.rotation.z = -0.018;
-      lid.castShadow = true;
+      const lid = new THREE.Mesh(new RoundedBoxGeometry(2.28, 0.25, 1.92, 6, 0.1), lidMaterial);
+      lid.position.copy(lidOffset);
       lid.userData.kind = 'box';
       stage.add(lid);
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.025, 0.035), seamMaterial);
+
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.024, 0.035), new THREE.MeshBasicMaterial({ color: '#66757a', transparent: true, opacity: 0.72 }));
       seam.position.set(0, 0.65, 1.105);
       stage.add(seam);
-      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.13, 24, 16), signalMaterial);
+      const signalMaterial = new THREE.MeshBasicMaterial({ color: '#edb66b', transparent: true, opacity: 0.92 });
+      const signal = new THREE.Mesh(new THREE.SphereGeometry(0.12, 24, 16), signalMaterial);
       signal.position.set(0, -0.05, 1.15);
       stage.add(signal);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.013, 12, 32), signalRingMaterial);
+      const ringMaterial = new THREE.MeshBasicMaterial({ color: '#df846d', transparent: true, opacity: 0.28 });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.012, 12, 32), ringMaterial);
       ring.rotation.x = Math.PI / 2;
       ring.position.set(0, -0.05, 1.155);
       stage.add(ring);
 
       const raycaster = new THREE.Raycaster();
       const pointer = new THREE.Vector2();
-      const onPointerDown = (event) => {
+      const interactionTarget = new THREE.Vector3(0.08, 0.05, 0.68);
+      const lightPosition = interactionTarget.clone();
+      const lightVelocity = new THREE.Vector3();
+      const localPoint = new THREE.Vector3();
+      const targetWithDrift = new THREE.Vector3();
+      let lastPointerAt = 0;
+      let leaveTimer = 0;
+
+      const pointerToBox = event => {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
         const hits = raycaster.intersectObjects([box, lid], false);
-        if (hits.length) {
-          touchRef.current();
-        }
+        if (!hits.length) return false;
+        localPoint.copy(hits[0].point);
+        stage.worldToLocal(localPoint);
+        interactionTarget.set(
+          THREE.MathUtils.clamp(localPoint.x * 0.74, -0.94, 0.94),
+          THREE.MathUtils.clamp(localPoint.y * 0.74, -0.54, 0.66),
+          THREE.MathUtils.clamp(localPoint.z * 0.68, -0.62, 0.8),
+        );
+        lastPointerAt = performance.now();
+        return true;
       };
+      const onPointerMove = event => {
+        window.clearTimeout(leaveTimer);
+        pointerToBox(event);
+      };
+      const onPointerLeave = () => {
+        leaveTimer = window.setTimeout(() => interactionTarget.set(0.12, 0.08, 0.52), 420);
+      };
+      const onPointerDown = event => {
+        if (pointerToBox(event)) touchRef.current();
+      };
+      renderer.domElement.addEventListener('pointermove', onPointerMove);
+      renderer.domElement.addEventListener('pointerleave', onPointerLeave);
       renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
       let raf = 0;
@@ -423,12 +466,25 @@ function UnknownBoxScene({ feedback, onTouch }) {
         const currentFeedback = feedbackRef.current;
         const age = Date.now() - currentFeedback.stamp;
         const pulse = age >= 0 && age < 1250 ? Math.sin((age / 1250) * Math.PI) : 0;
-        // The object barely acknowledges the user: no shake, no jump, no spectacle.
-        stage.position.y = Math.sin(elapsed * 0.35) * 0.006;
-        signalMaterial.emissiveIntensity = 0.11 + pulse * 0.18;
-        signal.scale.setScalar(1 + pulse * 0.045);
+        const recentlyApproached = performance.now() - lastPointerAt < 900;
+        targetWithDrift.copy(interactionTarget);
+        if (!recentlyApproached) {
+          targetWithDrift.x += Math.sin(elapsed * 0.34) * 0.12;
+          targetWithDrift.y += Math.cos(elapsed * 0.26) * 0.08;
+          targetWithDrift.z += Math.sin(elapsed * 0.2) * 0.06;
+        }
+        lightVelocity.addScaledVector(targetWithDrift.sub(lightPosition), Math.min(timer.getDelta() * 3.8, 0.08));
+        lightVelocity.multiplyScalar(Math.exp(-5.2 * Math.min(timer.getDelta(), 0.04)));
+        lightPosition.addScaledVector(lightVelocity, Math.min(timer.getDelta(), 0.04));
+        const primary = lightField.uLightPositions.value[0];
+        primary.copy(lightPosition).multiplyScalar(1 - pulse * 0.28);
+        lightField.uLightPositions.value[1].copy(lightPosition).multiplyScalar(0.56).add(new THREE.Vector3(-0.28, 0.18, -0.08));
+        lightField.uLightPositions.value[2].copy(lightPosition).multiplyScalar(0.32).add(new THREE.Vector3(0.15, -0.2, -0.54));
+        lightField.uTime.value = elapsed;
+        signalMaterial.opacity = 0.82 + pulse * 0.16;
+        signal.scale.setScalar(1 + pulse * 0.04);
         ring.scale.setScalar(1 + pulse * 0.12);
-        ring.material.opacity = 0.22 + pulse * 0.16;
+        ringMaterial.opacity = 0.2 + pulse * 0.15;
         renderer.render(scene, camera);
         raf = requestAnimationFrame(animate);
       };
@@ -437,8 +493,8 @@ function UnknownBoxScene({ feedback, onTouch }) {
       const onResize = () => {
         renderer.setSize(mount.clientWidth, mount.clientHeight);
         const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1);
-        camera.left = -3.5 * aspect;
-        camera.right = 3.5 * aspect;
+        camera.left = -3.6 * aspect;
+        camera.right = 3.6 * aspect;
         camera.top = 2.7;
         camera.bottom = -2.7;
         camera.updateProjectionMatrix();
@@ -447,10 +503,15 @@ function UnknownBoxScene({ feedback, onTouch }) {
       onResize();
       return () => {
         cancelAnimationFrame(raf);
+        window.clearTimeout(leaveTimer);
         window.removeEventListener('resize', onResize);
+        renderer.domElement.removeEventListener('pointermove', onPointerMove);
+        renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+        boxMaterial.dispose();
+        lidMaterial.dispose();
         renderer.dispose();
-        mount.removeChild(renderer.domElement);
+        if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
       };
     } catch (error) {
       console.warn('Three.js scene unavailable', error);
@@ -478,6 +539,8 @@ function App() {
   const [feedback, setFeedback] = useState({ type: 'idle', stamp: Date.now() - 2000 });
   const [hoverAction, setHoverAction] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedEvidence, setSelectedEvidence] = useState(null);
   const [message, setMessage] = useState('它在等你靠近。');
   const responseTimerRef = useRef(null);
 
@@ -573,25 +636,10 @@ function App() {
         <h1>今天，<br />它也在这里。</h1>
         <div className="scene-stage">
           <UnknownBoxScene feedback={feedback} onTouch={touchBox} />
-          <ScribbleLayer />
-          <img className="hand-overlay" src="/assets/hand-reaching.png" alt="一只正在靠近未知盒的手绘手" />
-          <div className="scene-hover-actions" aria-label="把光标放到插画上来互动">
-            <button className="scene-hover-action action-knock" type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('knock')} onBlur={() => setHoverAction(null)} aria-label="敲两下">
-              <span className="hover-glyph glyph-knock"><i></i><i></i></span><small>敲两下</small>
-            </button>
-            <button className="scene-hover-action action-wait" type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('wait')} onBlur={() => setHoverAction(null)} aria-label="等一会">
-              <span className="hover-glyph glyph-wait"><i></i></span><small>等一会</small>
-            </button>
-            <button className="scene-hover-action action-touch" type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('touch')} onBlur={() => setHoverAction(null)} aria-label="摸一下">
-              <span className="hover-glyph glyph-touch"><i></i></span><small>摸一下</small>
-            </button>
-          </div>
-          <div className="concept-cross"><span>×</span><div>薛定谔的盒子<small>看不见，但有回应</small></div></div>
-          <div className="scene-caption"><span>touch the box</span><span>轻一点</span></div>
         </div>
         <div className="scene-controls">
           <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><span className="signal-readout"><span className="live-dot"></span><small>{feedback.type === 'reply' ? '有回应' : '很安静'}</small></span></div>
-          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small></div>
+          <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions"><button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)}>敲两下</button><button type="button" disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)}>等一会</button><button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)}>摸一下</button></div></div>
         </div>
       </section>
 
@@ -603,7 +651,7 @@ function App() {
             <div className="phone-content">
               <section className="content-head phone-content-head">
                 <div>{sectionLabel && <span className="eyebrow accent">{sectionLabel}</span>}<h2>{sectionTitle}</h2><p>{sectionCopy}</p></div>
-                <div className="signal-readout" aria-label={feedback.type === 'reply' ? '有回应' : '很安静'}><span className="live-dot"></span></div>
+                <div className="phone-head-tools"><div className="signal-readout" aria-label={feedback.type === 'reply' ? '有回应' : '很安静'}><span className="live-dot"></span></div><button className="phone-menu-button" type="button" onClick={() => setDrawerOpen(true)} aria-label="打开贴纸抽屉"><i></i><i></i><i></i></button></div>
               </section>
 
               {tab === 'box' && <section className="phone-home">
@@ -618,16 +666,19 @@ function App() {
                   <div><span className="list-icon">03</span><span><b>记录</b><small>把回应收进证据册</small></span><em>→</em></div>
                 </div>
                 <div className="box-art-strip"><img src="/assets/unknown-box-home.png" alt="未知盒的手绘插画" /></div>
+                <div className="sticker-asset-rail" aria-label="今天留下的贴纸"><figure><img src="/assets/presence-stickers.png" alt="手绘的存在感贴纸" /><figcaption>有一点在场</figcaption></figure><figure><img src="/assets/unknown-box-response.png" alt="手绘的回应贴纸" /><figcaption>它回来了</figcaption></figure></div>
                 <div className="phone-response-meter"><div><span>今天的光</span><b>{Math.max(18, state.expression)}%</b></div><i><em style={{ width: `${Math.max(18, state.expression)}%` }}></em></i></div>
               </section>}
 
-              {tab === 'evidence' && <section className="phone-evidence"><div className="sticker-wall"><div className="sticker sticker-orange">还没<br />命名</div><div className="sticker sticker-yellow">它等了<br />一会儿</div><div className="sticker sticker-blue">一段<br />声音</div><div className="sticker sticker-pink">第三次<br />来访</div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <Badge key={id} id={id} title={id === 'origin' ? '还没命名' : id === 'waited' ? '它等了一会儿' : id === 'three-visits' ? '第三次来访' : '一段声音'} copy={copy} unlocked={state.badges.includes(id)} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{state.evidence.slice(0, 4).map(item => <div className="log-row" key={item.id}><span className={`log-dot ${item.kind}`}></span><div><strong>{item.title}</strong><small>{item.note}</small></div><time>{item.time}</time></div>)}</div></section>}
+              {tab === 'evidence' && <section className="phone-evidence"><div className="sticker-wall"><div className="sticker sticker-orange">还没<br />命名</div><div className="sticker sticker-yellow">它等了<br />一会儿</div><div className="sticker sticker-blue">一段<br />声音</div><div className="sticker sticker-pink">第三次<br />来访</div></div><div className="sticker-asset-rail evidence-asset-rail" aria-label="贴纸素材"><figure><img src="/assets/evidence-scraps.png" alt="证据碎片贴纸" /><figcaption>碎片也算</figcaption></figure><figure><img src="/assets/personality-stickers.png" alt="性格线索贴纸" /><figcaption>还在猜</figcaption></figure></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <Badge key={id} id={id} title={id === 'origin' ? '还没命名' : id === 'waited' ? '它等了一会儿' : id === 'three-visits' ? '第三次来访' : '一段声音'} copy={copy} unlocked={state.badges.includes(id)} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{state.evidence.slice(0, 4).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}</div></section>}
 
               {tab === 'island' && <section className="phone-island"><div className="island-art-card"><img src="/assets/box-island.png" alt="贴纸式盒群岛插画" /></div><div className="island-icon-grid"><button aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div><div className="phone-section-line"><span>邻居的回应</span><span>慢一点也没关系</span></div><div className="postcard"><span>♪　·　·　·　♪</span><small>047 号盒子 / 晚了 2.4 秒</small></div><button className="primary-button" onClick={sendPostcard}>寄出一段声音</button><div className="social-stat"><span>已寄出 <b>{state.postcards}</b> 张</span><span>偶尔共鸣 <b>{state.social}%</b></span></div></section>}
 
               {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一只慢热的小动物</h3><p>不是答案，只是最近留下的几个猜想。</p><div className="profile-doodle"><img src="/assets/presence-stickers.png" alt="手绘的耳朵、眼睛和小动物线索" /></div><div className="axis"><span>靠近</span><i><em style={{ width: `${Math.max(14, state.bond)}%` }}></em></i><span>绕一圈</span></div><div className="axis"><span>回来</span><i className="yellow"><em style={{ width: `${Math.max(14, 100 - state.patience)}%` }}></em></i><span>等一等</span></div><div className="axis"><span>发亮</span><i className="blue"><em style={{ width: `${Math.max(14, state.expression)}%` }}></em></i><span>很细微</span></div><div className="axis"><span>遇见</span><i className="pink"><em style={{ width: `${Math.max(14, state.social)}%` }}></em></i><span>偶尔</span></div><D3TraitPath values={[state.bond, 100 - state.patience, state.expression, state.social]} /><div className="profile-chip-row"><span>像猫一样绕开</span><span>像兔子一样突然</span><span>小鼠似的细听</span></div><p className="profile-footnote">下一次回应，可能会让它变成另一种样子。</p></section>}
             </div>
             <nav className="bottom-nav"><button className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>我的盒子</small></button><button className={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}><span><Icon name="island" /></span><small>盒群岛</small></button><button className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>证据册</small></button><button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格档案</small></button></nav>
+            {drawerOpen && <div className="phone-overlay" role="presentation" onClick={() => setDrawerOpen(false)}><aside className="phone-drawer" role="dialog" aria-modal="true" aria-label="贴纸抽屉" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setDrawerOpen(false)} aria-label="关闭贴纸抽屉">×</button><span className="eyebrow accent">STICKER DRAWER</span><h3>今天留下的</h3><p>一些还不能解释的东西，先放在这里。</p><div className="drawer-sticker-stack"><img src="/assets/presence-stickers.png" alt="存在感贴纸" /><img src="/assets/evidence-scraps.png" alt="证据碎片贴纸" /><img src="/assets/personality-stickers.png" alt="性格贴纸" /></div><button className="drawer-action" type="button" onClick={() => { setDrawerOpen(false); setTab('evidence'); }}>收进证据册 <span>↗</span></button></aside></div>}
+            {selectedEvidence && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setSelectedEvidence(null)}><section className="phone-sheet" role="dialog" aria-modal="true" aria-label="证据详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedEvidence(null)} aria-label="关闭证据详情">×</button><span className={`log-dot ${selectedEvidence.kind}`}></span><span className="eyebrow accent">EVIDENCE / {selectedEvidence.time}</span><h3>{selectedEvidence.title}</h3><p>{selectedEvidence.note}</p><div className="sheet-mark">{selectedEvidence.kind === 'relationship' ? '♪' : selectedEvidence.kind === 'touch' ? '◌' : '· · ·'}</div><small>这不是结论，只是它曾经靠近过的地方。</small></section></div>}
           </div>
         </div>
       </section>
@@ -639,3 +690,4 @@ function App() {
 }
 
 createRoot(document.getElementById('root')).render(<App />);
+

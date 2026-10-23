@@ -414,3 +414,45 @@ body { background: var(--bg); color: var(--ink); }
   .cover-card:hover { transform: none; }
 }
 
+/* Quiet physical object pass: the stage is a transparent window around one real mesh. */
+.scene-stage { overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.scene-stage .scene-host { cursor: crosshair; }
+.scene-stage .scribble-layer, .scene-stage .hand-overlay, .scene-stage .scene-hover-actions, .scene-stage .concept-cross, .scene-stage .scene-caption { display: none; }
+.scene-stage .scene-host canvas { filter: drop-shadow(0 28px 25px rgba(46,58,63,.13)); }
+.scene-fallback { background: transparent; box-shadow: none; }
+.scene-fallback > span { display: none; }
+.scene-message { grid-template-columns: auto 1fr; background: transparent; }
+.scene-quick-actions { grid-column: 1 / -1; display: flex; gap: 7px; padding-top: 6px; }
+.scene-quick-actions button { padding: 6px 9px; border: 1px solid rgba(22,27,32,.26); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 9px; cursor: pointer; transition: background-color .18s ease, color .18s ease, transform .18s ease; }
+.scene-quick-actions button:hover:not(:disabled) { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
+.scene-quick-actions button:disabled { cursor: wait; opacity: .45; }
+
+/* The phone uses the supplied PNGs as outlined narrative stickers, never as the 3D scene. */
+.phone-screen { position: relative; }
+.phone-head-tools { display: flex; align-items: flex-start; gap: 10px; }
+.phone-menu-button { display: grid; place-items: center; gap: 2px; width: 26px; height: 26px; padding: 5px; border: 1px solid rgba(22,27,32,.28); border-radius: 50%; background: transparent; color: var(--ink); cursor: pointer; }
+.phone-menu-button i { display: block; width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+.phone-menu-button:hover { background: var(--ink); color: var(--paper); }
+.sticker-asset-rail { display: flex; min-height: 72px; gap: 7px; overflow: hidden; padding: 6px 7px 5px; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); background: linear-gradient(90deg, rgba(231,111,79,.08), rgba(144,185,196,.08)); }
+.sticker-asset-rail figure { position: relative; display: grid; grid-template-columns: 48px 1fr; align-items: center; flex: 1; min-width: 0; margin: 0; }
+.sticker-asset-rail figure + figure { border-left: 1px solid var(--line); padding-left: 6px; }
+.sticker-asset-rail img { display: block; width: 48px; height: 58px; object-fit: contain; filter: drop-shadow(0 0 0 rgba(255,255,255,1)) drop-shadow(0 0 2px rgba(255,255,255,.98)) drop-shadow(0 5px 5px rgba(49,59,63,.1)); }
+.sticker-asset-rail figcaption { color: var(--muted); font-size: 8px; line-height: 1.25; }
+.evidence-asset-rail { margin: -2px 0 1px; }
+.phone-evidence-log .log-row-button { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.phone-evidence-log .log-row-button:hover { background: rgba(231,111,79,.06); }
+.phone-overlay { position: absolute; z-index: 20; inset: 0; display: flex; align-items: flex-end; padding: 10px; background: rgba(25,31,34,.19); backdrop-filter: blur(4px); }
+.phone-drawer, .phone-sheet { position: relative; width: 100%; padding: 19px 17px 16px; border: 1px solid rgba(22,27,32,.45); border-radius: 22px; background: rgba(252,252,250,.97); box-shadow: 0 18px 35px rgba(24,32,36,.18); }
+.phone-drawer h3, .phone-sheet h3 { margin: 10px 0 5px; font-size: 23px; letter-spacing: -.06em; }
+.phone-drawer p, .phone-sheet p { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.overlay-close { position: absolute; top: 10px; right: 12px; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid rgba(22,27,32,.28); border-radius: 50%; background: transparent; color: var(--ink); font-size: 16px; line-height: 1; cursor: pointer; }
+.drawer-sticker-stack { display: flex; align-items: center; height: 106px; margin: 11px -2px 9px; overflow: hidden; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
+.drawer-sticker-stack img { display: block; width: 33.333%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 0 rgba(255,255,255,1)) drop-shadow(0 0 3px rgba(255,255,255,1)) drop-shadow(0 8px 8px rgba(46,58,63,.1)); }
+.drawer-action { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 999px; background: var(--ink); color: var(--paper); font: inherit; font-size: 10px; cursor: pointer; }
+.sheet-overlay { align-items: flex-end; }
+.phone-sheet { padding-top: 24px; }
+.phone-sheet > .log-dot { display: block; width: 10px; height: 10px; margin-bottom: 9px; }
+.phone-sheet .eyebrow { display: block; }
+.sheet-mark { display: grid; place-items: center; height: 70px; margin: 15px 0 10px; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); color: var(--orange); font-size: 31px; letter-spacing: .22em; }
+.phone-sheet > small { color: var(--muted); font-size: 9px; }
+
