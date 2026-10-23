@@ -32,11 +32,15 @@ function loadState() {
   }
 }
 
+let audioContext;
+
 function playTone(type) {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    const ctx = new AudioContext();
+    audioContext ||= new AudioContext();
+    const ctx = audioContext;
+    if (ctx.state === 'suspended') void ctx.resume();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const now = ctx.currentTime;
@@ -55,7 +59,10 @@ function playTone(type) {
     osc.connect(gain).connect(ctx.destination);
     osc.start(now);
     osc.stop(now + sound.duration + 0.03);
-    osc.addEventListener('ended', () => ctx.close());
+    osc.addEventListener('ended', () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   } catch {
     // Audio is progressive enhancement; the prototype remains usable without it.
   }
@@ -352,6 +359,16 @@ function App() {
   const [feedback, setFeedback] = useState({ type: 'idle', stamp: Date.now() - 2000 });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('它在等你靠近。');
+  const responseTimerRef = useRef(null);
+
+  const clearResponseTimer = useCallback(() => {
+    if (responseTimerRef.current) {
+      window.clearTimeout(responseTimerRef.current);
+      responseTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearResponseTimer, [clearResponseTimer]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -362,6 +379,7 @@ function App() {
     setFeedback({ type: 'reply', stamp: Date.now() });
     setMessage(type === 'wait' ? '你等到了。它终于留下了一点回应。' : '它回应了一下，很轻。');
     playTone('reply');
+    responseTimerRef.current = null;
     setBusy(false);
   }, []);
 
@@ -372,13 +390,13 @@ function App() {
     if (type === 'knock') {
       setMessage('两下敲击已经送进去。不要急着再敲。');
       playTone('knock');
-      window.setTimeout(() => commitReply('knock'), 1800);
+      responseTimerRef.current = window.setTimeout(() => commitReply('knock'), 1800);
     } else if (type === 'wait') {
       setMessage('把手放下。现在轮到它。');
-      window.setTimeout(() => commitReply('wait'), 2400);
+      responseTimerRef.current = window.setTimeout(() => commitReply('wait'), 2400);
     } else {
       setMessage('它感到你的手靠近了。');
-      window.setTimeout(() => commitReply('touch'), 550);
+      responseTimerRef.current = window.setTimeout(() => commitReply('touch'), 550);
     }
   }, [busy, commitReply]);
 
@@ -396,8 +414,10 @@ function App() {
   };
 
   const reset = () => {
+    clearResponseTimer();
     localStorage.removeItem(STORAGE_KEY);
     setState(DEFAULT_STATE);
+    setBusy(false);
     setMessage('重新从一个未知盒开始。');
   };
 
@@ -487,4 +507,3 @@ function App() {
 }
 
 createRoot(document.getElementById('root')).render(<App />);
-

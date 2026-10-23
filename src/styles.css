@@ -16,7 +16,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; background: var(--bg); color: var(--ink); }
 button { font: inherit; }
-.app-shell { max-width: 1180px; margin: 0 auto; padding: 32px 28px 28px; }
+.app-shell { max-width: 1260px; margin: 0 auto; padding: 32px 28px 28px; }
 .app-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
 .brand { font-size: 28px; line-height: 1; font-weight: 850; letter-spacing: -.07em; }
 .eyebrow { display: block; margin-bottom: 10px; color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .15em; }
@@ -117,7 +117,7 @@ p { margin: 0; max-width: 540px; color: var(--muted); font-size: 14px; line-heig
 
 /* Presentation-board layout: the physical scene and the app are deliberately separate objects. */
 .app-main { padding-top: 40px; }
-.prototype-board { display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: clamp(34px, 6vw, 76px); align-items: start; }
+.prototype-board { display: grid; grid-template-columns: minmax(0, 1fr) 404px; gap: clamp(32px, 4vw, 56px); align-items: start; }
 .scene-column { min-width: 0; }
 .scene-topline { display: flex; align-items: center; justify-content: space-between; width: min(100%, 650px); margin-bottom: 18px; color: var(--muted); font-size: 12px; font-weight: 800; }
 .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 99px; background: rgba(255,253,247,.55); font-size: 10px; font-weight: 700; }
@@ -144,7 +144,7 @@ p { margin: 0; max-width: 540px; color: var(--muted); font-size: 14px; line-heig
 .scene-message .eyebrow { grid-column: 1 / -1; margin-bottom: 0; }
 .scene-message strong { font-size: 15px; letter-spacing: -.035em; }
 .scene-message small { color: var(--muted); font-size: 11px; }
-.phone-column { width: 100%; max-width: 430px; justify-self: center; }
+.phone-column { width: 100%; max-width: 404px; justify-self: center; }
 .phone-kicker { margin-bottom: 16px; }
 .phone-frame { position: relative; width: min(100%, 404px); aspect-ratio: 390 / 780; margin: 0 auto; padding: 10px; border: 6px solid #211e1b; border-radius: 45px; background: #211e1b; box-shadow: 15px 18px 0 rgba(47,42,39,.12); }
 .phone-speaker { position: absolute; z-index: 4; top: 15px; left: 50%; width: 78px; height: 5px; border-radius: 999px; background: #211e1b; transform: translateX(-50%); }
@@ -257,6 +257,10 @@ button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
   .scene-column { width: min(100%, 650px); margin: 0 auto; }
   .phone-column { justify-self: center; }
 }
+@media (max-width: 1080px) and (min-width: 921px) {
+  .app-shell { padding-inline: 22px; }
+  .prototype-board { gap: 30px; }
+}
 @media (max-width: 580px) {
   .prototype-board { gap: 42px; }
   .scene-column h1 { font-size: clamp(40px, 13vw, 58px); }
@@ -281,4 +285,3 @@ button:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
 .scene-stage .scene-caption { right: 4%; bottom: 4%; left: 4%; z-index: 7; padding-top: 9px; border-top: 1px solid rgba(47,42,39,.18); }
 @media (max-width: 920px) { .scene-column { width: min(100%, 860px); } }
 @media (max-width: 580px) { .scene-stage { border-radius: 18px; } .scene-stage .hand-overlay { width: 38%; bottom: 4%; left: -5%; } .concept-cross { top: 7%; right: 6%; } .concept-cross > div { font-size: 11px; } }
-
