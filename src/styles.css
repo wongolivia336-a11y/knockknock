@@ -1274,3 +1274,6 @@ body { min-width: 320px; overflow-x: hidden; }
   .phone-sheet { max-height: min(82vh, 600px); }
 }
 
+
+/* Development-only shader/raycast inspection panel. It is never mounted in production. */
+.light-debug-panel { position: absolute; z-index: 20; top: 12px; left: 12px; max-width: min(360px, calc(100% - 24px)); margin: 0; padding: 9px 11px; border: 1px solid rgba(40, 50, 56, .24); border-radius: 9px; background: rgba(247, 242, 233, .86); box-shadow: 0 8px 22px rgba(49, 55, 59, .12); color: #263238; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; pointer-events: none; }

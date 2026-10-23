@@ -472,6 +472,7 @@ const BOX_FRAGMENT_SHADER = `
   uniform vec3 uInteractionPosition;
   uniform vec3 uInteractionColor;
   uniform float uInteractionStrength;
+  uniform float uDebugReveal;
   varying vec3 vLocalPosition;
   varying vec3 vLocalNormal;
   varying vec3 vViewPosition;
@@ -517,14 +518,14 @@ const BOX_FRAGMENT_SHADER = `
     for (int i = 0; i < 4; i++) {
       vec3 delta = warpedPosition - uLightPositions[i];
       float distanceSquared = dot(delta, delta);
-      float radius = uLightRadii[i] * 0.76;
+      float radius = uLightRadii[i] * 0.64;
       float edgeNoise = softNoise(warpedPosition * 2.4 + vec3(float(i) * 3.1, uTime * 0.018, float(i) * 1.7));
       float organicDistance = max(0.0, distanceSquared + (edgeNoise - 0.5) * uEdgeDiffusion * 0.075 * radius * radius);
-      float halo = exp(-organicDistance / (2.0 * (radius * 1.18) * (radius * 1.18)));
-      float coreRadius = radius * (0.27 + uSoftness * 0.13);
+      float halo = exp(-organicDistance / (2.0 * (radius * 1.28) * (radius * 1.28)));
+      float coreRadius = radius * (0.34 + uSoftness * 0.16);
       float core = exp(-organicDistance / (2.0 * coreRadius * coreRadius));
       float wrap = mix(0.55, 0.92, max(dot(normalize(-delta + vec3(0.0001)), n), 0.0) * uEdgeDiffusion);
-      float contribution = (core * 0.54 + halo * 0.34) * uLightIntensities[i] * wrap;
+      float contribution = (core * 0.72 + halo * 0.52) * uLightIntensities[i] * wrap;
       weightedField += uLightColors[i] * contribution;
       totalWeight += contribution;
       if (contribution > dominantContribution) {
@@ -535,9 +536,9 @@ const BOX_FRAGMENT_SHADER = `
 
     vec3 averageColor = weightedField / max(totalWeight, 0.0001);
     float averageLuma = dot(averageColor, vec3(0.299, 0.587, 0.114));
-    vec3 fieldColor = clamp(mix(vec3(averageLuma), averageColor, 1.08), 0.0, 1.0);
-    fieldColor = mix(fieldColor, dominantColor, clamp(dominantContribution * 0.12, 0.0, 0.2));
-    float fieldAmount = min(0.78, 1.0 - exp(-totalWeight * (1.45 + uIntensity * 0.38)));
+    vec3 fieldColor = clamp(mix(vec3(averageLuma), averageColor, 1.35), 0.0, 1.0);
+    fieldColor = mix(fieldColor, dominantColor, clamp(0.28 + dominantContribution * 0.46, 0.28, 0.68));
+    float fieldAmount = min(0.92, 1.0 - exp(-totalWeight * (1.9 + uIntensity * 0.58)));
     vec3 interactionDelta = warpedPosition - uInteractionPosition;
     float interactionDistance = dot(interactionDelta, interactionDelta);
     float closeness = smoothstep(0.18, 0.82, uInteractionStrength);
@@ -546,27 +547,36 @@ const BOX_FRAGMENT_SHADER = `
     float interactionHalo = exp(-interactionDistance / (2.0 * interactionHaloRadius * interactionHaloRadius));
     float interactionCore = exp(-interactionDistance / (2.0 * interactionCoreRadius * interactionCoreRadius));
     float interactionAmount = (interactionHalo * mix(0.23, 0.34, closeness) + interactionCore * mix(0.32, 0.62, closeness)) * uInteractionStrength;
-    fieldColor = mix(fieldColor, uInteractionColor, clamp(interactionAmount * 0.7, 0.0, 0.72));
-    fieldAmount = min(0.92, fieldAmount + interactionAmount * 0.32);
+    float interactionMix = clamp(interactionAmount * (0.88 + uIntensity * 0.32), 0.0, 0.86);
+    fieldColor = mix(fieldColor, uInteractionColor, interactionMix);
+    fieldAmount = min(0.98, fieldAmount + interactionAmount * 0.42);
 
     vec3 viewDirection = normalize(vViewPosition);
     float edgeLight = pow(1.0 - max(dot(normalize(vLocalNormal), normalize(vec3(-0.1, 0.48, 0.86))), 0.0), 1.65);
     float grain = (microGrain - 0.5) * uGrain;
     vec3 atmosphere = mix(uBaseColor, uAtmosphereColor, uAtmosphereStrength * (0.5 + lowFrequency * 0.25));
     vec3 surfaceColor = atmosphere * (diffuse * 0.92 + (lowFrequency - 0.5) * 0.055 + edgeLight * 0.035);
-    float fieldBlend = clamp(fieldAmount * 0.68, 0.0, 0.64);
+    float fieldBlend = clamp(fieldAmount * (0.9 + uIntensity * 0.2), 0.0, 0.94);
     vec3 shell = vec3(0.86, 0.82, 0.76) * (0.88 + diffuse * 0.12);
-    float opticalMix = clamp(0.34 + fieldAmount * 0.52, 0.34, 0.78);
-    vec3 color = mix(surfaceColor * 1.08, fieldColor, opticalMix);
+    float opticalMix = clamp(0.42 + fieldAmount * 0.55, 0.42, 0.96);
+    vec3 localFieldColor = clamp(weightedField * (0.9 + uIntensity * 0.4) + fieldColor * 0.5 + uInteractionColor * interactionAmount * 0.5, 0.0, 1.0);
+    vec3 color = mix(surfaceColor * 1.04, localFieldColor, opticalMix);
+    color = mix(color, mix(surfaceColor * 0.96, fieldColor, fieldBlend), 0.1 + fieldAmount * 0.08);
     color = mix(color, shell, 0.055 + edgeLight * 0.055);
     float sideFace = smoothstep(0.24, 0.92, max(n.x, 0.0));
     float topFace = smoothstep(0.24, 0.92, max(n.y, 0.0));
     color *= mix(vec3(1.0), vec3(0.84, 0.85, 0.86), sideFace);
     color *= mix(vec3(1.0), vec3(1.045, 1.025, 0.99), topFace);
-    color += fieldColor * min(0.075, totalWeight * 0.095);
-    color += fieldColor * 0.045 * mediumNoise;
+    color += fieldColor * min(0.11, totalWeight * 0.15);
+    color += clamp(weightedField * (0.14 + uIntensity * 0.1), 0.0, 0.28);
+    color += fieldColor * 0.065 * mediumNoise;
+    color += uInteractionColor * (interactionCore * 0.32 + interactionHalo * 0.065) * uInteractionStrength;
     color += vec3(grain);
     color += vec3(0.012, 0.01, 0.008) * (1.0 - max(dot(viewDirection, normalize(vLocalNormal)), 0.0));
+    if (uDebugReveal > 0.5) {
+      vec3 debugField = clamp(weightedField * (0.55 + uIntensity * 0.3) + fieldColor * (0.38 + fieldAmount * 0.8) + uInteractionColor * interactionAmount * 1.35, 0.0, 1.0);
+      color = debugField;
+    }
     gl_FragColor = vec4(color, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -637,6 +647,7 @@ function createBoxMaterial(baseColor, objectOffset, lightField) {
       uInteractionPosition: lightField.uInteractionPosition,
       uInteractionColor: lightField.uInteractionColor,
       uInteractionStrength: lightField.uInteractionStrength,
+      uDebugReveal: lightField.uDebugReveal,
     },
     vertexShader: BOX_VERTEX_SHADER,
     fragmentShader: BOX_FRAGMENT_SHADER,
@@ -645,11 +656,14 @@ function createBoxMaterial(baseColor, objectOffset, lightField) {
 
 function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId }) {
   const mountRef = useRef(null);
+  const debugPanelRef = useRef(null);
   const feedbackRef = useRef(feedback);
   const touchRef = useRef(onTouch);
   const [failed, setFailed] = useState(false);
   const styleRef = useRef(createLightStyle(getLightPreset(activePresetId || DEFAULT_LIGHT_PRESET_ID)));
   const transitionRef = useRef(null);
+  const debugEnabled = import.meta.env.DEV && new URLSearchParams(window.location.search).get('lightDebug') === '1';
+  const debugFieldOnly = debugEnabled && new URLSearchParams(window.location.search).get('lightDebugField') === '1';
 
   useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
   useEffect(() => { touchRef.current = onTouch; }, [onTouch]);
@@ -677,6 +691,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.02;
+      renderer.debug.checkShaderErrors = import.meta.env.DEV;
       mount.appendChild(renderer.domElement);
 
       const stage = new THREE.Group();
@@ -698,6 +713,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         uInteractionPosition: { value: new THREE.Vector3(0.08, 0.05, 0.54) },
         uInteractionColor: { value: new THREE.Color('#e5b8bc') },
         uInteractionStrength: { value: 0.2 },
+        uDebugReveal: { value: debugFieldOnly ? 1 : 0 },
       };
       const boxOffset = new THREE.Vector3(0, 0, 0);
       const boxMaterial = createBoxMaterial('#F1EAE1', boxOffset, lightField);
@@ -705,6 +721,29 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       box.position.set(0, 0.04, 0);
       box.userData.kind = 'box';
       stage.add(box);
+      stage.updateMatrixWorld(true);
+
+      const debugCoreMarker = debugEnabled ? new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 16, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, depthTest: false, depthWrite: false }),
+      ) : null;
+      const debugHaloMarker = debugEnabled ? new THREE.Mesh(
+        new THREE.SphereGeometry(0.24, 24, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.13, depthTest: false, depthWrite: false, wireframe: true }),
+      ) : null;
+      const debugHitMarker = debugEnabled ? new THREE.Mesh(
+        new THREE.SphereGeometry(0.075, 14, 8),
+        new THREE.MeshBasicMaterial({ color: 0x62b48c, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false }),
+      ) : null;
+      if (debugCoreMarker && debugHaloMarker && debugHitMarker) {
+        debugCoreMarker.renderOrder = 100;
+        debugHaloMarker.renderOrder = 99;
+        debugHitMarker.renderOrder = 101;
+        debugCoreMarker.visible = false;
+        debugHaloMarker.visible = false;
+        debugHitMarker.visible = false;
+        stage.add(debugCoreMarker, debugHaloMarker, debugHitMarker);
+      }
 
       const shadowMaterial = new THREE.ShaderMaterial({
         transparent: true,
@@ -737,14 +776,21 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       const interactionPosition = interactionTarget.clone();
       const interactionVelocity = new THREE.Vector3();
       const localPoint = new THREE.Vector3();
+      const localNormal = new THREE.Vector3(0, 0, 1);
+      const boxHalfExtents = new THREE.Vector3(1.725, 1.675, 1.325);
+      const pointerState = {
+        isOverBox: false,
+        isPressed: false,
+        hasRaycastHit: false,
+        lastHitPoint: new THREE.Vector3(0.08, 0.05, 0.54),
+        lastMoveAt: 0,
+      };
       const targetWithDrift = new THREE.Vector3();
       const rotationTarget = new THREE.Vector2(0, 0);
       const rotationPosition = new THREE.Vector2(0, 0);
-      let lastPointerAt = 0;
       let leaveTimer = 0;
-      let pointerPressed = false;
-      let pointerPresence = 0;
       let pointerProximity = 0;
+      let hoverAmount = 0;
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       const pointerToBox = event => {
@@ -753,48 +799,59 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
         const hits = raycaster.intersectObject(box, false);
-        if (hits.length) {
-          localPoint.copy(hits[0].point);
-          stage.worldToLocal(localPoint);
-          interactionTarget.set(
-            THREE.MathUtils.clamp(localPoint.x * 0.86, -1.52, 1.52),
-            THREE.MathUtils.clamp(localPoint.y * 0.86, -1.42, 1.42),
-            THREE.MathUtils.clamp(localPoint.z * 0.88, -0.5, 0.66),
-          );
-          pointerProximity = 1;
-        } else {
-          // Keep the hover field alive when the pointer is near the box but not
-          // exactly over its rounded surface. The box remains the only touch target.
-          const edgeDistance = Math.hypot(pointer.x * 0.82, pointer.y * 0.9);
-          pointerProximity = THREE.MathUtils.clamp(1 - Math.max(0, edgeDistance - 0.12) / 0.88, 0, 1);
-          interactionTarget.set(
-            THREE.MathUtils.clamp(pointer.x * 1.48, -1.52, 1.52),
-            THREE.MathUtils.clamp(pointer.y * 1.34, -1.42, 1.42),
-            THREE.MathUtils.clamp(0.52 - Math.abs(pointer.x) * 0.08, -0.5, 0.66),
-          );
+        pointerState.lastMoveAt = performance.now();
+        pointerState.hasRaycastHit = hits.length > 0;
+        if (!hits.length) {
+          pointerProximity = 0;
+          if (pointerState.isOverBox) {
+            window.clearTimeout(leaveTimer);
+            leaveTimer = window.setTimeout(() => { pointerState.isOverBox = false; }, 420);
+          }
+          return false;
         }
-        lastPointerAt = performance.now();
-        pointerPresence = 1;
-        return hits.length > 0;
+
+        window.clearTimeout(leaveTimer);
+        const hit = hits[0];
+        box.worldToLocal(localPoint.copy(hit.point));
+        if (hit.face?.normal) localNormal.copy(hit.face.normal).normalize();
+        else localNormal.copy(localPoint).normalize();
+        // Keep the virtual source just inside the surface that was actually hit.
+        // All five consumers now share box-local coordinates: raycast, target,
+        // animated blobs, and the fragment shader's vLocalPosition.
+        interactionTarget.copy(localPoint).addScaledVector(localNormal, -0.14);
+        interactionTarget.x = THREE.MathUtils.clamp(interactionTarget.x, -boxHalfExtents.x + 0.08, boxHalfExtents.x - 0.08);
+        interactionTarget.y = THREE.MathUtils.clamp(interactionTarget.y, -boxHalfExtents.y + 0.08, boxHalfExtents.y - 0.08);
+        interactionTarget.z = THREE.MathUtils.clamp(interactionTarget.z, -boxHalfExtents.z + 0.08, boxHalfExtents.z - 0.08);
+        pointerState.lastHitPoint.copy(localPoint);
+        pointerState.isOverBox = true;
+        pointerProximity = 1;
+        return true;
       };
-      const onPointerEnter = event => { pointerPresence = 1; pointerToBox(event); };
+      const onPointerEnter = event => { pointerToBox(event); };
       const onPointerMove = event => {
         window.clearTimeout(leaveTimer);
         pointerToBox(event);
-        if (pointerPressed && !reducedMotion) {
+        if (pointerState.isPressed && !reducedMotion) {
           const rect = renderer.domElement.getBoundingClientRect();
           rotationTarget.y = THREE.MathUtils.clamp(((event.clientX - rect.left) / rect.width - 0.5) * 0.34, -0.3, 0.3);
           rotationTarget.x = THREE.MathUtils.clamp(((event.clientY - rect.top) / rect.height - 0.5) * -0.16, -0.14, 0.14);
         }
       };
-      const onPointerLeave = () => { pointerPresence = 0; pointerProximity = 0; leaveTimer = window.setTimeout(() => interactionTarget.set(0.12, 0.08, 0.42), 420); };
-      const onPointerDown = event => { pointerPressed = true; renderer.domElement.setPointerCapture?.(event.pointerId); if (pointerToBox(event)) touchRef.current(); };
-      const onPointerUp = event => { pointerPressed = false; renderer.domElement.releasePointerCapture?.(event.pointerId); };
+      const onPointerLeave = () => {
+        pointerProximity = 0;
+        pointerState.hasRaycastHit = false;
+        window.clearTimeout(leaveTimer);
+        leaveTimer = window.setTimeout(() => { pointerState.isOverBox = false; }, 420);
+      };
+      const onPointerDown = event => { pointerState.isPressed = true; renderer.domElement.setPointerCapture?.(event.pointerId); if (pointerToBox(event)) touchRef.current(); };
+      const onPointerUp = event => { pointerState.isPressed = false; renderer.domElement.releasePointerCapture?.(event.pointerId); };
+      const onPointerCancel = event => { pointerState.isPressed = false; renderer.domElement.releasePointerCapture?.(event.pointerId); };
       renderer.domElement.addEventListener('pointerenter', onPointerEnter);
       renderer.domElement.addEventListener('pointermove', onPointerMove);
       renderer.domElement.addEventListener('pointerleave', onPointerLeave);
       renderer.domElement.addEventListener('pointerdown', onPointerDown);
       renderer.domElement.addEventListener('pointerup', onPointerUp);
+      renderer.domElement.addEventListener('pointercancel', onPointerCancel);
 
       let raf = 0;
       const timer = new THREE.Timer();
@@ -814,7 +871,9 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         const motion = style.motion;
         const cycleTime = elapsed * ((Math.PI * 2) / Math.max(motion.cycle, 1)) * (reducedMotion ? 0 : motion.speed);
         const feedbackAge = (Date.now() - feedbackRef.current.stamp) / 1000;
-        const recentlyApproached = pointerPresence > 0;
+        const recentlyApproached = pointerState.isOverBox;
+        const hoverTarget = recentlyApproached ? 1 : 0;
+        hoverAmount = THREE.MathUtils.damp(hoverAmount, hoverTarget, recentlyApproached ? 8 : 4.5, delta);
         const knockCollapse = feedbackRef.current.type === 'knock' ? Math.max(0, 1 - Math.abs(feedbackAge - 0.28) / 0.52) : 0;
         for (let index = 0; index < 4; index += 1) {
           const blob = style.blobs[index];
@@ -824,7 +883,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
           const driftY = Math.cos(phase * 0.83 + index * 0.42) * blob.driftY * (1 + turbulence * 0.3);
           const flow = Math.sin(cycleTime * 0.43 + blob.phase * 1.7) * turbulence * 0.08;
           lightPositions[index].set((blob.u - 0.5) * 2.62 + driftX + flow, (blob.v - 0.5) * 2.52 + driftY, -0.08 + blob.depth * 0.84 + Math.sin(phase * 0.62) * turbulence * 0.1);
-          if (index === 0 && recentlyApproached) lightPositions[index].lerp(interactionPosition, THREE.MathUtils.clamp(motion.followStrength * (0.34 + pointerProximity * 0.18), 0, 0.48));
+          if (index === 0) lightPositions[index].lerp(interactionPosition, THREE.MathUtils.clamp(motion.followStrength * (0.3 + hoverAmount * 0.32), 0, 0.62));
           if (feedbackRef.current.type === 'knock' && feedbackAge > 0.78) lightPositions[index].x += (index === 0 ? -1 : 0.35) * Math.min((feedbackAge - 0.78) * 0.38, 0.36);
           lightColors[index].set(style.colors[index].r, style.colors[index].g, style.colors[index].b);
           lightField.uLightIntensities.value[index] = style.intensities[index] * (0.94 + Math.sin(phase * 0.5) * motion.breathing * 0.08) * (1 - knockCollapse * 0.72);
@@ -847,17 +906,39 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         const responseDelay = motion.responseDelay;
         const responseProgress = feedbackAge > responseDelay ? Math.min((feedbackAge - responseDelay) / 1.15, 1) : 0;
         const responsePulse = Math.sin(responseProgress * Math.PI);
-        const approachStrength = recentlyApproached ? 0.28 + pointerProximity * 0.36 : 0.1;
+        const approachStrength = hoverAmount * (0.32 + pointerProximity * 0.42);
         lightField.uInteractionPosition.value.copy(interactionPosition);
         lightField.uInteractionColor.value.copy(style.colors[0]);
-        lightField.uInteractionStrength.value = approachStrength + responsePulse * 0.42 + (feedbackRef.current.type === 'knock' ? 0.12 : 0);
+        lightField.uInteractionStrength.value = THREE.MathUtils.clamp(approachStrength + responsePulse * 0.48 + (feedbackRef.current.type === 'knock' ? 0.12 : 0), 0, 1.35);
         lightField.uAtmosphereColor.value.copy(style.atmosphereColor);
         lightField.uAtmosphereStrength.value = 0.055 + style.optical.intensity * 0.045;
         lightField.uIntensity.value = style.optical.intensity;
         lightField.uSoftness.value = style.optical.softness;
         lightField.uGrain.value = style.optical.grain;
         lightField.uEdgeDiffusion.value = style.optical.edgeDiffusion;
-        lightField.uTime.value = elapsed;
+        lightField.uTime.value = reducedMotion ? 0 : elapsed;
+        if (debugEnabled) {
+          debugCoreMarker.position.copy(interactionPosition);
+          debugHaloMarker.position.copy(interactionPosition);
+          debugHitMarker.position.copy(pointerState.lastHitPoint);
+          debugCoreMarker.visible = true;
+          debugHaloMarker.visible = true;
+          debugHitMarker.visible = pointerState.hasRaycastHit;
+          if (debugPanelRef.current && elapsed - (debugPanelRef.current.dataset.lastPaint || 0) > 0.08) {
+            debugPanelRef.current.dataset.lastPaint = String(elapsed);
+            debugPanelRef.current.textContent = [
+              `Raycast Hit: ${pointerState.hasRaycastHit}`,
+              `Pointer Local: ${pointerState.lastHitPoint.x.toFixed(3)} / ${pointerState.lastHitPoint.y.toFixed(3)} / ${pointerState.lastHitPoint.z.toFixed(3)}`,
+              `Light Target: ${interactionTarget.x.toFixed(3)} / ${interactionTarget.y.toFixed(3)} / ${interactionTarget.z.toFixed(3)}`,
+              `Light Current: ${interactionPosition.x.toFixed(3)} / ${interactionPosition.y.toFixed(3)} / ${interactionPosition.z.toFixed(3)}`,
+              `Interaction Strength: ${lightField.uInteractionStrength.value.toFixed(3)}`,
+              `Light Radius: ${lightField.uLightRadii.value[0].toFixed(3)}`,
+              `Light Intensity: ${lightField.uLightIntensities.value[0].toFixed(3)}`,
+              `Animation Time: ${lightField.uTime.value.toFixed(2)}`,
+              `WebGL: ${renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1'} / programs ${renderer.info.programs.length}`,
+            ].join('\n');
+          }
+        }
         if (!reducedMotion) {
           rotationPosition.x = THREE.MathUtils.lerp(rotationPosition.x, rotationTarget.x, 1 - Math.exp(-4.8 * delta));
           rotationPosition.y = THREE.MathUtils.lerp(rotationPosition.y, rotationTarget.y, 1 - Math.exp(-4.8 * delta));
@@ -895,7 +976,14 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
         renderer.domElement.removeEventListener('pointerdown', onPointerDown);
         renderer.domElement.removeEventListener('pointerup', onPointerUp);
-         boxMaterial.dispose();
+        renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
+        boxMaterial.dispose();
+        debugCoreMarker?.geometry.dispose();
+        debugCoreMarker?.material.dispose();
+        debugHaloMarker?.geometry.dispose();
+        debugHaloMarker?.material.dispose();
+        debugHitMarker?.geometry.dispose();
+        debugHitMarker?.material.dispose();
         shadowMaterial.dispose();
         glowMaterial.dispose();
         renderer.dispose();
@@ -911,7 +999,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
   if (failed) {
     return <div className="scene-fallback"><div className="fallback-box" aria-hidden="true"></div><span>当前设备不支持 WebGL，已切换为纯 CSS 盒体预览</span></div>;
   }
-  return <div className="scene-host" ref={mountRef} />;
+  return <div className="scene-host" ref={mountRef}>{debugEnabled && <pre className="light-debug-panel" ref={debugPanelRef} />}</div>;
 }
 
 function StickerGlyph({ kind }) {
