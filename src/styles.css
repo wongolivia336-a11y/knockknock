@@ -1453,3 +1453,93 @@ body { min-width: 320px; overflow-x: hidden; }
   .island-social-note__sticker { width: 46px; height: 46px; }
 }
 
+
+
+/* Keep the prototype steady while actions are hovered or their in-phone sheets open. */
+html { scrollbar-gutter: stable; }
+
+.scene-control-head { min-height: 18px; }
+.scene-message {
+  grid-template-columns: minmax(0, 1fr) minmax(7.5em, auto);
+  align-items: start;
+}
+.scene-message > strong,
+.scene-message > small {
+  min-height: 2.8em;
+  line-height: 1.4;
+}
+.scene-message > strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.scene-message > small { display: block; }
+
+.scene-quick-actions button,
+.scene-quick-actions button:hover:not(:disabled),
+.scene-quick-actions button:focus-visible,
+.scene-quick-actions button:active:not(:disabled) {
+  transform: none;
+}
+.scene-quick-actions button {
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+.scene-quick-actions button:hover:not(:disabled),
+.scene-quick-actions button:focus-visible {
+  border-color: rgba(202,139,104,.34);
+  background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(255,247,237,.88));
+  box-shadow: inset 0 1px rgba(255,255,255,.96), 0 6px 15px rgba(105,75,54,.08);
+}
+.scene-quick-actions button .action-sticker,
+.scene-quick-actions button:hover .action-sticker,
+.scene-quick-actions button:focus-visible .action-sticker {
+  transform: none;
+  transition: filter .16s ease;
+}
+.scene-quick-actions button:hover .action-sticker,
+.scene-quick-actions button:focus-visible .action-sticker {
+  filter: saturate(1.06) brightness(1.03);
+}
+.scene-quick-actions button:active:not(:disabled) {
+  background: #f8eee3;
+  box-shadow: inset 0 1px 3px rgba(105,75,54,.08);
+}
+
+/* Interaction feedback stays in the light/shadow, not in canvas or sticker scaling. */
+@keyframes box-knock-echo {
+  0%, 100% { filter: drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+  20%, 39% { filter: drop-shadow(0 0 13px rgba(223,192,160,.2)) drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+  70% { filter: drop-shadow(0 0 9px rgba(223,192,160,.12)) drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+}
+@keyframes box-wait-breath {
+  0%, 100% { filter: drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+  42% { filter: drop-shadow(0 0 10px rgba(232,215,190,.18)) drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+}
+@keyframes box-touch-echo {
+  0%, 100% { filter: drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+  32% { filter: drop-shadow(0 0 15px rgba(232,215,190,.2)) drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+}
+@keyframes box-feed-glow {
+  0%, 100% { filter: drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+  38% { filter: drop-shadow(0 0 17px rgba(239,218,170,.22)) drop-shadow(0 30px 34px rgba(76,62,54,.2)); }
+}
+@keyframes action-sticker-answer {
+  0%, 100% { filter: none; opacity: 1; }
+  40% { filter: saturate(1.08) brightness(1.05); opacity: .96; }
+  72% { filter: saturate(1.03); opacity: 1; }
+}
+
+@media (max-width: 520px) {
+  .scene-message { grid-template-columns: minmax(0, 1fr); }
+  .scene-message > small { text-align: left; }
+  .scene-quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scene-quick-actions button { min-height: 68px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-quick-actions button,
+  .scene-quick-actions button .action-sticker { transition: none; }
+}
