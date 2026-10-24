@@ -1399,9 +1399,43 @@ body { min-width: 320px; overflow-x: hidden; }
   font-size: 9px;
   line-height: 1.45;
 }
-.care-social-card__copy .text-link-button {
-  justify-self: start;
+.care-social-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 12px;
   margin-top: 2px;
+}
+.care-feed-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 25px;
+  padding: 3px 8px;
+  border: 1px solid rgba(177, 133, 89, .22);
+  border-radius: 999px;
+  background: rgba(255, 252, 238, .82);
+  color: #9a7651;
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform .18s ease, background-color .18s ease;
+}
+.care-feed-button .ui-icon {
+  width: 12px;
+  height: 12px;
+}
+.care-feed-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #fffdf4;
+}
+.care-feed-button:disabled {
+  opacity: .58;
+  cursor: wait;
+}
+.care-social-card__actions .text-link-button {
+  justify-self: start;
+  margin-top: 0;
   color: #a86f55;
   font-size: 9px;
 }
@@ -1449,11 +1483,276 @@ body { min-width: 320px; overflow-x: hidden; }
 @media (max-width: 580px) {
   .care-social-card { grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding-right: 9px; }
   .care-social-card__sticker, .care-social-card__sticker img { width: 52px; height: 52px; }
+  .care-social-card__actions { gap: 4px 9px; }
   .island-social-note { grid-template-columns: minmax(0, 1fr) 46px; padding-inline: 10px; }
   .island-social-note__sticker { width: 46px; height: 46px; }
 }
 
+/* Feedback pass: give the 3D stage a clear lower edge and keep its controls separate. */
+.scene-stage {
+  height: clamp(490px, 42vw, 560px);
+  margin-bottom: clamp(30px, 3.4vw, 44px);
+}
+.scene-controls { margin-top: 10px; }
+.scene-stage.is-knocking .scene-host canvas { animation: box-knock-echo .95s cubic-bezier(.2,.7,.25,1) both; }
+.scene-stage.is-waiting .scene-host canvas { animation: box-wait-breath 1.3s ease-out both; }
+.scene-stage.is-touching .scene-host canvas { animation: box-touch-echo .82s cubic-bezier(.18,.75,.28,1) both; }
+.scene-stage.is-feeding .scene-host canvas { animation: box-feed-glow .95s ease-out both; }
+@keyframes box-knock-echo {
+  0%, 100% { transform: scale(1); }
+  20% { transform: scale(.986); }
+  39% { transform: scale(.992); }
+  70% { transform: scale(1.009); }
+}
+@keyframes box-wait-breath {
+  0%, 100% { transform: scale(1); }
+  42% { transform: scale(1.008); }
+}
+@keyframes box-touch-echo {
+  0%, 100% { transform: scale(1); }
+  32% { transform: scale(1.012); }
+}
+@keyframes box-feed-glow {
+  0%, 100% { transform: scale(1); }
+  38% { transform: scale(1.01); }
+}
+.scene-quick-actions button.is-current-action {
+  border-color: rgba(203,140,104,.34);
+  background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(251,239,223,.9));
+  box-shadow: inset 0 1px rgba(255,255,255,.96), 0 0 0 2px rgba(221,169,129,.1), 0 7px 17px rgba(105,75,54,.08);
+}
+.scene-quick-actions button.is-current-action .action-sticker { animation: action-sticker-answer .64s ease-in-out 2; }
+@keyframes action-sticker-answer {
+  0%, 100% { transform: translateY(0) rotate(0) scale(1); }
+  40% { transform: translateY(-3px) rotate(-5deg) scale(1.08); }
+  72% { transform: translateY(0) rotate(3deg) scale(1.02); }
+}
 
+/* Paper-sticker wall for observed traces: readable labels, subtle print grain, hand-cut edges. */
+.sticker-wall .sticker {
+  position: relative;
+  min-height: 78px;
+  gap: 4px;
+  padding: 8px 5px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,.94);
+  outline: 1px solid rgba(118,91,70,.12);
+  border-radius: 21px 15px 19px 14px;
+  box-shadow: 0 5px 11px rgba(79,62,50,.09), inset 0 1px rgba(255,255,255,.5);
+  background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.09) 0 1px, transparent 1px 4px), linear-gradient(145deg, rgba(255,255,255,.15), transparent 65%);
+}
+.sticker-wall .sticker:nth-child(2) { border-radius: 16px 22px 14px 20px; }
+.sticker-wall .sticker:nth-child(3) { border-radius: 22px 14px 21px 16px; }
+.sticker-wall .sticker:nth-child(4) { border-radius: 15px 20px 17px 23px; }
+.sticker-wall .sticker::after { position: absolute; inset: 4px; border: 1px dashed rgba(255,255,255,.46); border-radius: inherit; content: ""; pointer-events: none; }
+.sticker-wall .sticker svg { width: 20px; height: 20px; stroke-width: 1.45; filter: drop-shadow(0 1px rgba(255,255,255,.7)); }
+.sticker-wall .sticker span { display: grid; gap: 3px; }
+.sticker-wall .sticker strong { font-size: 9px; font-weight: 750; line-height: 1.1; }
+.sticker-wall .sticker small { color: rgba(61,52,46,.68); font-size: 7px; font-weight: 500; line-height: 1.2; }
+
+/* The two island paths are separate: the box's home, and box-to-box visits. */
+.island-hub-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; align-items: stretch; }
+.island-hub-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 40px auto auto;
+  gap: 4px;
+  min-width: 0;
+  min-height: 150px;
+  padding: 10px 10px 9px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,.94);
+  outline: 1px solid rgba(113,91,73,.13);
+  border-radius: 18px 14px 20px 15px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 5px 12px rgba(79,62,50,.075), inset 0 1px rgba(255,255,255,.82);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.island-hub-card::before { position: absolute; top: 0; right: 18px; width: 35px; height: 7px; background: rgba(227,190,142,.38); content: ""; transform: rotate(2deg); }
+.island-hub-card--home { background: repeating-linear-gradient(0deg, rgba(255,255,255,.16) 0 1px, transparent 1px 5px), linear-gradient(145deg, #f5f4e8, #fff6ec); transform: rotate(-.45deg); }
+.island-hub-card--visitors { background: repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px), linear-gradient(145deg, #f3edf7, #fff4e9); transform: rotate(.45deg); }
+.island-hub-card:hover, .island-hub-card:focus-visible { transform: translateY(-2px) rotate(0); box-shadow: 0 8px 16px rgba(79,62,50,.11), inset 0 1px rgba(255,255,255,.9); }
+.island-hub-card:focus-visible { outline: 2px solid #d29a76; outline-offset: 3px; }
+.island-hub-card .eyebrow { color: #a6785d; font-size: 7px; letter-spacing: .06em; }
+.island-hub-card strong { font-size: 10px; line-height: 1.3; }
+.island-hub-card small { min-height: 22px; color: var(--text-secondary); font-size: 8px; line-height: 1.35; }
+.island-hub-card > b { color: #a86f55; font-size: 8px; font-weight: 700; }
+.island-hub-stickers { position: relative; display: flex; align-items: center; padding-left: 3px; }
+.island-hub-stickers img { width: 39px; height: 39px; margin-left: -6px; object-fit: contain; filter: drop-shadow(0 0 2px white) drop-shadow(0 3px 4px rgba(77,62,50,.1)); }
+.island-hub-stickers img:first-child { margin-left: 0; transform: rotate(-7deg); }
+.island-hub-stickers img:nth-child(2) { transform: rotate(4deg) translateY(2px); }
+.island-hub-stickers img:nth-child(3) { transform: rotate(-3deg) translateY(-1px); }
+.island-icon-grid button {
+  position: relative;
+  min-height: 60px;
+  border: 2px solid rgba(255,255,255,.92);
+  outline: 1px solid rgba(113,91,73,.12);
+  border-radius: 16px 12px 17px 13px;
+  background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.16) 0 1px, transparent 1px 5px), linear-gradient(145deg, rgba(255,255,255,.3), transparent);
+  box-shadow: 0 4px 9px rgba(79,62,50,.055), inset 0 1px rgba(255,255,255,.78);
+}
+.island-icon-grid button:nth-child(2) { transform: rotate(.8deg); }
+.island-icon-grid button:nth-child(3) { transform: rotate(-.8deg); }
+.island-icon-grid button:nth-child(1) { transform: rotate(-.6deg); }
+.island-icon-grid button:hover { transform: translateY(-2px) rotate(0); }
+.island-icon-grid button span { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: rgba(255,255,255,.58); color: #8c7563; }
+.island-icon-grid button small { color: #5c524b; font-size: 8px; font-weight: 650; }
+
+.my-island-page { gap: 10px; }
+.my-island-scene {
+  position: relative;
+  min-height: 200px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,.95);
+  outline: 1px solid rgba(113,129,102,.16);
+  border-radius: 22px 17px 24px 18px;
+  background: radial-gradient(ellipse at 50% 54%, rgba(255,255,255,.72), transparent 57%), repeating-linear-gradient(0deg, rgba(255,255,255,.2) 0 1px, transparent 1px 5px), linear-gradient(145deg, #eaf1e5, #f7f0e5 68%, #f6e9e5);
+  box-shadow: 0 6px 16px rgba(75,91,74,.07), inset 0 1px rgba(255,255,255,.9);
+}
+.my-island-scene::before { position: absolute; inset: 12px; border: 1px dashed rgba(143,153,128,.24); border-radius: 18px 14px 17px 13px; content: ""; }
+.my-island-scene > p { position: absolute; right: 12px; bottom: 5px; left: 12px; margin: 0; color: #85796e; font-size: 8px; text-align: center; }
+.my-island-sun { position: absolute; top: 15px; right: 24px; color: #e7b479; font-size: 19px; }
+.my-island-route { position: absolute; z-index: 1; height: 1px; border-top: 1px dashed rgba(191,151,120,.55); transform-origin: left; }
+.my-island-route--one { top: 57%; left: 27%; width: 28%; transform: rotate(-14deg); }
+.my-island-route--two { top: 61%; left: 50%; width: 27%; transform: rotate(13deg); }
+.my-island-home-sticker, .my-island-item { position: absolute; z-index: 2; display: grid; justify-items: center; gap: 1px; }
+.my-island-home-sticker { top: 25px; left: 50%; width: 86px; transform: translateX(-50%) rotate(-3deg); }
+.my-island-home-sticker img { width: 76px; height: 76px; object-fit: contain; filter: drop-shadow(0 0 2px white) drop-shadow(0 4px 5px rgba(75,67,56,.1)); }
+.my-island-item img { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 2px white) drop-shadow(0 4px 5px rgba(75,67,56,.1)); }
+.my-island-home-sticker small, .my-island-item small { padding: 3px 6px; border: 1px solid rgba(255,255,255,.94); border-radius: 7px 5px 8px 6px; background: rgba(255,251,243,.88); color: #75675b; font-size: 7px; box-shadow: 0 2px 4px rgba(70,59,48,.06); }
+.my-island-item--shell { top: 79px; left: 9%; transform: rotate(-8deg); }
+.my-island-item--lamp { top: 29px; right: 13%; transform: rotate(6deg); }
+.my-island-item--lamp > span { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid rgba(255,255,255,.94); border-radius: 50%; background: radial-gradient(circle, #fff4bd 0 16%, #f2c38a 18% 23%, rgba(242,195,138,.14) 25% 60%, transparent 62%); color: #db9e5f; font-size: 24px; text-shadow: 0 0 9px rgba(235,186,104,.7); }
+.my-island-item--boat { top: 88px; right: 9%; transform: rotate(7deg); }
+.my-island-item--boat img { width: 49px; height: 44px; }
+.my-island-decor-shelf { display: grid; gap: 7px; }
+.my-island-decor {
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr) 18px;
+  gap: 8px;
+  align-items: center;
+  min-height: 55px;
+  padding: 5px 8px;
+  border: 1px solid rgba(115,92,72,.1);
+  border-radius: 13px 16px 12px 15px;
+  background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(255,249,241,.74));
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.my-island-decor:nth-child(2) { transform: rotate(.25deg); }
+.my-island-decor:nth-child(3) { transform: rotate(-.25deg); }
+.my-island-decor:hover, .my-island-decor.is-selected { border-color: rgba(190,143,105,.28); background: #fffaf0; transform: translateX(2px); }
+.my-island-decor > img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 0 2px white) drop-shadow(0 3px 4px rgba(77,62,50,.1)); }
+.my-island-decor > span { display: grid; gap: 3px; min-width: 0; }
+.my-island-decor strong { font-size: 9px; }
+.my-island-decor small { color: var(--text-secondary); font-size: 8px; line-height: 1.3; }
+.my-island-decor > i { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: rgba(237,225,205,.48); color: #a8795d; font-size: 10px; font-style: normal; }
+.my-island-detail-note { padding: 10px 11px; border-left: 2px solid rgba(203,140,104,.4); background: linear-gradient(90deg, rgba(250,241,228,.64), transparent); }
+.my-island-detail-note .eyebrow { font-size: 7px; }
+.my-island-detail-note strong { display: block; margin-top: 3px; font-size: 10px; }
+.my-island-detail-note p { margin: 3px 0 0; color: var(--text-secondary); font-size: 8px; }
+
+/* A loose sticker wall keeps the animal-shaped guesses open-ended, not a fixed pet species. */
+.profile-doodle.profile-sticker-wall {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  align-items: center;
+  gap: 7px;
+  min-height: 112px;
+  height: auto;
+  margin: 5px 0 0;
+  padding: 9px;
+  overflow: visible;
+  border: 1px dashed rgba(133,111,91,.22);
+  border-radius: 18px 14px 20px 16px;
+  background: radial-gradient(circle at 14px 14px, rgba(173,148,123,.1) 0 1px, transparent 1.5px) 0 0 / 17px 17px, linear-gradient(145deg, rgba(247,240,230,.68), rgba(255,251,245,.84));
+}
+.animal-sticker { display: grid; justify-items: center; align-content: center; gap: 2px; min-width: 0; min-height: 84px; margin: 0; padding: 4px 2px; border: 2px solid rgba(255,255,255,.96); border-radius: 15px 12px 17px 13px; background: linear-gradient(145deg, #fffdf8, #f8f1e9); box-shadow: 0 4px 9px rgba(79,62,50,.09), inset 0 1px rgba(255,255,255,.98); color: #877365; }
+.animal-sticker--cat { transform: rotate(-3deg); }
+.animal-sticker--presence { transform: translateY(-4px) rotate(1deg); }
+.animal-sticker--dog { transform: rotate(3deg); }
+.animal-sticker > svg { width: 49px; height: 49px; overflow: visible; fill: none; stroke: #928072; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.animal-sticker > svg text { fill: #b7795d; stroke: none; font-family: inherit; font-size: 8px; font-weight: 700; text-anchor: middle; }
+.animal-sticker > svg .animal-question { fill: #fff9ed; stroke: #d5a47e; stroke-width: 1.1; }
+.animal-sticker figcaption { color: #78695d; font-size: 7px; line-height: 1.2; }
+.presence-image-wrap { position: relative; display: grid; place-items: center; width: 49px; height: 49px; }
+.presence-image-wrap img { width: 47px; height: 47px; object-fit: contain; }
+.presence-image-wrap i { position: absolute; top: 1px; right: -2px; display: grid; place-items: center; width: 15px; height: 15px; border: 1px solid white; border-radius: 50%; background: #fff8e9; color: #b7795d; font-size: 9px; font-style: normal; font-weight: 750; }
+.profile-sticker-caption { margin: -2px 2px 1px !important; color: var(--text-muted); font-size: 8px !important; text-align: center; }
+
+/* The personality guesses use the same irregular die-cut PNG language as the other stickers. */
+.animal-sticker {
+  min-height: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.animal-sticker > svg { display: none; }
+.animal-sticker::before {
+  width: 72px;
+  height: 72px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: '';
+  filter: drop-shadow(0 4px 4px rgba(77,62,50,.12));
+}
+.animal-sticker--cat::before { background-image: url('/assets/stickers/cat-question-sticker.png'); }
+.animal-sticker--dog::before { background-image: url('/assets/stickers/dog-question-sticker.png'); }
+.animal-sticker--presence::before { display: none; }
+.animal-sticker--presence .presence-image-wrap { width: 69px; height: 69px; }
+.animal-sticker--presence .presence-image-wrap img { width: 66px; height: 66px; }
+.animal-sticker figcaption { font-size: 8px; }
+
+/* Compact dialogs get more breathing room around a newly earned keepsake. */
+.badge-unlock-sheet { padding: 28px 22px 20px; }
+.badge-unlock-sheet > .eyebrow { margin-bottom: 8px; }
+.badge-unlock-sheet .sticker-badge { margin: 8px auto 14px; }
+.badge-unlock-sheet h3 { margin: 6px 0 9px; }
+.badge-unlock-sheet p { max-width: 245px; line-height: 1.65; }
+.badge-unlock-sheet .drawer-action { min-height: 42px; margin-top: 17px; padding-inline: 16px; }
+
+.progress-stage-list > .progress-stage.is-current,
+.progress-stage-list > .progress-stage.is-current:hover { border-color: transparent; }
+
+.hearing-postcard::after { color: var(--text-muted); font-size: 9px; line-height: 1.45; content: '一声轻敲，隔着海，晚一点回来。'; }
+
+.scene-stage .scene-host canvas { touch-action: none; cursor: grab; }
+.scene-stage .scene-host canvas:active { cursor: grabbing; }
+
+@media (max-width: 700px) {
+  .scene-stage .scene-host canvas { touch-action: pan-y; cursor: default; }
+}
+
+@media (max-width: 920px) {
+  .scene-stage { height: clamp(500px, 68vw, 620px); margin-bottom: 34px; }
+}
+@media (max-width: 580px) {
+  .scene-stage { height: clamp(365px, 104vw, 450px); margin-bottom: 27px; }
+  .scene-controls { margin-top: 8px; }
+  .island-hub-cards { gap: 7px; }
+  .island-hub-card { min-height: 148px; padding: 9px 8px; }
+  .island-hub-card strong { font-size: 9px; }
+  .island-hub-card small { font-size: 7px; }
+  .my-island-scene { min-height: 190px; }
+  .my-island-home-sticker { top: 28px; }
+  .my-island-item--shell { left: 6%; }
+  .my-island-item--boat { right: 5%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-stage.is-knocking .scene-host canvas,
+  .scene-stage.is-waiting .scene-host canvas,
+  .scene-stage.is-touching .scene-host canvas,
+  .scene-stage.is-feeding .scene-host canvas,
+  .scene-quick-actions button.is-current-action .action-sticker { animation: none; }
+  .island-hub-card, .my-island-decor, .scene-quick-actions button { transition: none; }
+}
 
 /* Keep the prototype steady while actions are hovered or their in-phone sheets open. */
 html { scrollbar-gutter: stable; }
