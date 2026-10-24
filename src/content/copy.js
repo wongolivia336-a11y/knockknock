@@ -13,7 +13,7 @@ export const COPY = {
   tabs: {
     box: { label: '照料与回应', title: '今天的盒子', copy: '从一次轻敲开始，用日常相处慢慢建立熟悉。' },
     evidence: { label: '相处留下的线索', title: '探索记录', copy: '记录光、声音、触摸与停留，不替它下结论。' },
-    island: { label: '声音明信片', title: '盒群岛', copy: '把一段轻声寄出去，回信会在某个时候抵达。' },
+    island: { label: '盒子之间的来访', title: '盒群岛', copy: '先照料自己的盒子，再去看看远处的盒子。' },
     profile: { label: '暂时的理解', title: '性格档案', copy: '性格来自反复相处的观察，只是一种行为联想。' },
   },
   state: {

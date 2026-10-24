@@ -1121,7 +1121,8 @@ function App() {
   const [activePresetId, setActivePresetId] = useState(loadLightPresetId);
   const [previewPresetId, setPreviewPresetId] = useState(null);
   const [skinPulse, setSkinPulse] = useState(0);
-  const [tab, setTab] = useState('box');
+  const previewTab = import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'island' ? 'island' : 'box';
+  const [tab, setTab] = useState(previewTab);
   const [islandView, setIslandView] = useState('map');
   const [selectedVisitorId, setSelectedVisitorId] = useState(null);
   const [savedVisits, setSavedVisits] = useState(() => {
@@ -1310,7 +1311,9 @@ function App() {
   const activePreset = getLightPreset(activePresetId);
   const currentTabCopy = COPY.tabs[tab];
   const [sectionLabel, sectionTitle, sectionCopy] = [currentTabCopy.label, currentTabCopy.title, currentTabCopy.copy];
-  const phoneHeaderCopy = tab === 'island' && islandView === 'visitors'
+  const phoneHeaderCopy = tab === 'island' && islandView === 'map'
+    ? ['盒群岛 · 匿名来访', '盒子之间会互相来访', '主人保持匿名；你可以留下回应，也可以先去看看另一只盒子。']
+    : tab === 'island' && islandView === 'visitors'
     ? ['群岛 · 来访', '来访记录', '这些声音来自远处的小岛；先听见，再决定要不要回应。']
     : tab === 'island' && islandView === 'visitor-detail'
       ? ['群岛 · 访客详情', '一段匿名的靠近', '它留下了一个具体的瞬间，但没有留下完整身份。']
@@ -1376,6 +1379,7 @@ function App() {
 
               {tab === 'box' && <section className="phone-home">
                  <div className="today-note"><span className="tape-strip"></span><span className="eyebrow">今天留给你的便签</span><strong>{todayNote}</strong><small>每次回应，都会成为一条线索。</small><img className="note-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="未知陪伴者的抽象渐变贴纸" /><span className="note-preset-chip"><i style={{ background: `linear-gradient(135deg, ${activePreset.colors.blobs[0]}, ${activePreset.colors.blobs[1]}, ${activePreset.colors.blobs[2]})` }}></i>{activePreset.subtitle}</span></div>
+                <div className="care-social-card"><div className="care-social-card__sticker"><img src="/assets/stickers/unknown-presence-sticker.png" alt="" aria-hidden="true" /></div><div className="care-social-card__copy"><span className="eyebrow">今天的照料 · 盒群岛</span><strong>先陪好自己的盒子，再去看看别的盒子。</strong><small>{ISLAND_VISITORS.length} 个匿名盒子留下了来访；你也可以把一点回应寄出去。</small><button type="button" className="text-link-button" onClick={() => setTab('island')}>去群岛看看 <span>↗</span></button></div></div>
                 <div className="phone-progress-card"><div className="progress-card-head"><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><div className="progress-track"><i style={{ width: `${state.currentCycle.progress}%` }}></i></div><p>进度记录相处阶段，不代表它的身份。</p><button type="button" className="text-link-button" onClick={() => setProgressOpen(true)}>查看探索阶段 <span>↗</span></button></div>
                 <div className="phone-personality-snapshot"><div className="phone-section-line"><span>猜猜它的性格</span><span>只是目前的猜测</span></div><div className="personality-chip-grid">{PERSONALITY_COPY.slice(0, 3).map(([id, title]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' ? 'curious' : 'night'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div></div>
                 <div className="phone-recent-evidence"><div className="phone-section-line"><span>最近的线索</span><span>{state.evidence.length} 条</span></div>{state.evidence.slice(0, 2).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}<button type="button" className="text-link-button" onClick={() => setTab('evidence')}>查看全部记录 <span>↗</span></button></div>
@@ -1414,14 +1418,15 @@ function App() {
                   {postcardReply && <button className="island-visitors-link" type="button" onClick={() => setIslandHearingOpen(true)}><span>打开 047 号盒子的回信</span><b aria-hidden="true">↗</b></button>}
                   <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出一段声音</button>
                   <p className="island-privacy-note">演示中的访客与回信来自本地示例数据，不是实时在线用户。</p>
-                </section> : <section className="phone-island">
+               </section> : <section className="phone-island">
                  <div className="island-art-card"><IslandCollage onOpenHearing={() => setIslandHearingOpen(true)} onOpenVisitors={() => setIslandView('visitors')} onOpenRelations={() => setIslandView('relations')} /></div>
+                 <div className="island-social-note"><div className="island-social-note__copy"><span className="eyebrow accent">盒子之间 · 匿名来访</span><strong>乘一只小船，去看看另一只盒子。</strong><small>可以留下声音、光，或把一件小小的照料送过去。</small></div><img className="island-social-note__sticker" src="/assets/stickers/island-postcard-sticker.png" alt="一枚前往远处小岛的贴纸" /></div>
                   <div className="island-icon-grid"><button type="button" onClick={() => setIslandHearingOpen(true)} aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button type="button" onClick={() => setIslandView('visitors')} aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button type="button" onClick={() => setIslandView('relations')} aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div>
-                 <div className="phone-section-line"><span>今日来访</span><span>{ISLAND_VISITORS.length} 张声音明信片</span></div>
+                 <div className="phone-section-line"><span>小船抵达</span><span>{ISLAND_VISITORS.length} 个匿名来访</span></div>
                  <div className="postcard island-postcard-preview"><SignalWave active /><small>047 号盒子 · 主人捎来一段晚归后的观察</small></div>
-                 <button className="island-visitors-link" type="button" onClick={() => setIslandView('visitors')}><span>打开今天的来信</span><b aria-hidden="true">↗</b></button>
-                  <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出一段声音</button>
-                 <p className="island-postcard-caption">你寄出的声音不必马上被听见；它可以在某个安静的时刻回来。</p>
+                 <button className="island-visitors-link" type="button" onClick={() => setIslandView('visitors')}><span>打开今天的来访</span><b aria-hidden="true">↗</b></button>
+                  <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出一段回应</button>
+                 <p className="island-postcard-caption">你不需要认识主人；让盒子替你留下一个具体的片刻。</p>
                </section>)}
 
                {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一位慢热的伙伴</h3><p>这是根据目前线索形成的暂时理解。</p><div className="profile-doodle"><img className="profile-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="抽象渐变形态，代表尚未命名的伙伴" /><span>柔和 / 慢热 / 再靠近</span></div><div className="profile-progress-card"><div><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><i><em style={{ width: `${state.currentCycle.progress}%` }}></em></i><small>进度代表相处阶段，不代表它的身份。</small></div><div className="phone-section-line"><span>目前推测</span><span>可能继续变化</span></div><div className="personality-chip-grid profile-personality-grid">{PERSONALITY_COPY.map(([id, title, copy]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' || id === 'curious' ? 'curious' : id === 'nocturnal' ? 'night' : 'patient'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div><div className="phone-section-line"><span>伙伴纪念章</span><span>{state.badges.filter(id => state.badges.includes(id)).length} / {badges.length}</span></div><div className="badge-gallery">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} compact onOpen={setSelectedBadge} />)}</div><button type="button" className="clue-button" onClick={() => setProgressOpen(true)}><span>查看探索阶段</span><b>↗</b></button><p className="profile-footnote">下一次回应，也许会让这份理解变得不同。</p></section>}
