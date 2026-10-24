@@ -8,12 +8,16 @@
 - Vercel 在线预览：[knockknock-theta.vercel.app](https://knockknock-theta.vercel.app/)
 - 本次视觉修复分支：[feature/priority-visual-repair-20261024](https://github.com/wongolivia336-a11y/knockknock/tree/feature/priority-visual-repair-20261024)
 - 本次视觉修复 Preview：[Vercel Preview](https://knockknock-git-feature-prio-f9a3d5-wongolivia336-a11ys-projects.vercel.app)
+- 盒体光场回归修复分支：[fix/restore-box-light-field-20261024](https://github.com/wongolivia336-a11y/knockknock/tree/fix/restore-box-light-field-20261024)
+- 盒体光场回归修复 Preview：[Vercel Preview](https://knockknock-git-fix-restore-d98618-wongolivia336-a11ys-projects.vercel.app)
 - 本地开发入口：`http://127.0.0.1:4175/`（端口占用时以 Vite 终端输出为准）
 - 本地启动：运行项目外层的 `启动本地预览.bat`，或执行 `npm ci` 后 `npm run dev -- --host 127.0.0.1`
 
 2026-10-23 已完成动态光场回归修复：Hover 跟随、局部坐标 Raycast、点击聚焦/弥散、延迟响应、自主漂移、六种预设联动和开发调试面板均已保留并验证。
 
 2026-10-24 已完成优先视觉修复：盒体外壳调整为独立的 cream-white matte ivory 材质，动态光场仍参与最终 shader 合成；盒群岛改为由现有透明贴纸组成的三岛拼贴，并用独立语义热点连接听见、来访和关系路径。
+
+2026-10-24 已完成盒体光场回归修复：恢复上一版细腻的多色光场与交互反馈，仅将盒体视觉放大 1.12 倍；保留 RoundedBoxGeometry 参数，取消场景 Canvas 对下方交互卡片的裁切遮罩关系。
 
 ## 已实现
 
