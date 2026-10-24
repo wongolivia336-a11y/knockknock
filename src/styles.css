@@ -1350,3 +1350,106 @@ body { min-width: 320px; overflow-x: hidden; }
   .hotspot-ring { transition: none; }
 }
 
+/* Minimal IA calibration: make the box-to-box care loop visible without adding a new flow. */
+.care-social-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 78px;
+  padding: 11px 12px 11px 9px;
+  border: 1px dashed rgba(125, 154, 137, .34);
+  border-radius: 14px 18px 13px 17px;
+  background: linear-gradient(135deg, rgba(241, 247, 235, .88), rgba(255, 245, 232, .86));
+  box-shadow: 3px 5px 0 rgba(91, 119, 96, .06);
+  transform: rotate(.35deg);
+}
+.care-social-card__sticker {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  transform: rotate(-7deg);
+}
+.care-social-card__sticker img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  filter: saturate(1.35) drop-shadow(0 4px 5px rgba(77, 62, 50, .12));
+}
+.care-social-card__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.care-social-card__copy .eyebrow {
+  margin: 0 0 2px;
+  color: #78937d;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+.care-social-card__copy strong {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.3;
+}
+.care-social-card__copy small {
+  color: var(--text-secondary);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.care-social-card__copy .text-link-button {
+  justify-self: start;
+  margin-top: 2px;
+  color: #a86f55;
+  font-size: 9px;
+}
+.island-social-note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  gap: 8px;
+  align-items: center;
+  min-height: 66px;
+  padding: 10px 11px 9px 12px;
+  border: 1px dashed rgba(203, 140, 104, .28);
+  border-radius: 12px 15px 11px 16px;
+  background: linear-gradient(135deg, rgba(255, 249, 239, .9), rgba(242, 247, 239, .82));
+  box-shadow: 2px 4px 0 rgba(132, 105, 82, .05);
+  transform: rotate(-.3deg);
+}
+.island-social-note__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.island-social-note__copy .eyebrow {
+  margin: 0 0 1px;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+.island-social-note__copy strong {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.3;
+}
+.island-social-note__copy small {
+  color: var(--text-secondary);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.island-social-note__sticker {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  transform: rotate(7deg);
+  filter: drop-shadow(0 0 1.4px rgba(255, 255, 255, .98)) drop-shadow(0 4px 5px rgba(77, 62, 50, .13));
+}
+@media (max-width: 580px) {
+  .care-social-card { grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding-right: 9px; }
+  .care-social-card__sticker, .care-social-card__sticker img { width: 52px; height: 52px; }
+  .island-social-note { grid-template-columns: minmax(0, 1fr) 46px; padding-inline: 10px; }
+  .island-social-note__sticker { width: 46px; height: 46px; }
+}
+
