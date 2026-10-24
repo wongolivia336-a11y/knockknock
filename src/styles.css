@@ -1399,9 +1399,43 @@ body { min-width: 320px; overflow-x: hidden; }
   font-size: 9px;
   line-height: 1.45;
 }
-.care-social-card__copy .text-link-button {
-  justify-self: start;
+.care-social-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 12px;
   margin-top: 2px;
+}
+.care-feed-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 25px;
+  padding: 3px 8px;
+  border: 1px solid rgba(177, 133, 89, .22);
+  border-radius: 999px;
+  background: rgba(255, 252, 238, .82);
+  color: #9a7651;
+  font-size: 9px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform .18s ease, background-color .18s ease;
+}
+.care-feed-button .ui-icon {
+  width: 12px;
+  height: 12px;
+}
+.care-feed-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #fffdf4;
+}
+.care-feed-button:disabled {
+  opacity: .58;
+  cursor: wait;
+}
+.care-social-card__actions .text-link-button {
+  justify-self: start;
+  margin-top: 0;
   color: #a86f55;
   font-size: 9px;
 }
@@ -1449,7 +1483,7 @@ body { min-width: 320px; overflow-x: hidden; }
 @media (max-width: 580px) {
   .care-social-card { grid-template-columns: 52px minmax(0, 1fr); gap: 8px; padding-right: 9px; }
   .care-social-card__sticker, .care-social-card__sticker img { width: 52px; height: 52px; }
+  .care-social-card__actions { gap: 4px 9px; }
   .island-social-note { grid-template-columns: minmax(0, 1fr) 46px; padding-inline: 10px; }
   .island-social-note__sticker { width: 46px; height: 46px; }
 }
-
