@@ -847,8 +847,8 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         if (event.pointerType !== 'touch') pointerToBox(event);
       };
       const onPointerMove = event => {
-        window.clearTimeout(leaveTimer);
         if (event.pointerType === 'touch' && !pointerState.isPressed) return;
+        window.clearTimeout(leaveTimer);
         if (pointerState.isPressed) {
           const rect = renderer.domElement.getBoundingClientRect();
           const deltaX = event.clientX - dragStartClient.x;
