@@ -280,18 +280,18 @@ function updateFromInteraction(previous, type) {
     lastInteractionAt: Date.now(),
     presenceState: 'responding',
     interactionKinds,
-    bond: Math.min(100, previous.bond + (type === 'wait' ? 5 : 2)),
-    expression: Math.min(100, previous.expression + (type === 'touch' ? 3 : type === 'listen' ? 2 : 1)),
+    bond: Math.min(100, previous.bond + (type === 'wait' ? 5 : type === 'feed' ? 4 : 2)),
+    expression: Math.min(100, previous.expression + (type === 'touch' || type === 'feed' ? 3 : type === 'listen' ? 2 : 1)),
     personality: {
       ...previous.personality,
-      companion: Math.min(100, previous.personality.companion + (type === 'wait' ? 3 : 1)),
+      companion: Math.min(100, previous.personality.companion + (type === 'wait' ? 3 : type === 'feed' ? 2 : 1)),
       explorer: Math.min(100, previous.personality.explorer + (type === 'knock' ? 2 : 0)),
       nocturnal: Math.min(100, previous.personality.nocturnal + (type === 'listen' ? 2 : 0)),
       calm: Math.min(100, previous.personality.calm + (type === 'wait' ? 2 : 0)),
-      curious: Math.min(100, previous.personality.curious + (type === 'knock' || type === 'touch' ? 2 : 0)),
+      curious: Math.min(100, previous.personality.curious + (type === 'knock' || type === 'touch' || type === 'feed' ? 2 : 0)),
       shy: Math.max(12, previous.personality.shy + (type === 'touch' ? 1 : 0)),
     },
-    lastEvent: type === 'knock' ? '两下轻敲已经送到，盒子里暂时安静。' : type === 'wait' ? '你等了一会儿，它留下了一点回应。' : type === 'listen' ? '你听见了一声很轻的回响。' : '它朝你的手边靠近了一点。',
+    lastEvent: type === 'knock' ? '两下轻敲送到了。' : type === 'wait' ? '你等了一会儿，它回应了。' : type === 'listen' ? '你听见了一声回响。' : type === 'feed' ? '你喂了一点光，它亮了一下。' : '它朝你的手边靠近了。',
   };
   if (type === 'wait') {
     next.patience = Math.min(100, previous.patience + 8);
@@ -300,6 +300,10 @@ function updateFromInteraction(previous, type) {
   }
   if (type === 'touch') {
     next = addEvidence(next, { title: '手指靠近过', kind: 'behavior', category: '触摸 / 靠近', supports: ['companion', 'shy'], note: '手靠近时，光往这边移了一点。', time: '刚刚' });
+  }
+  if (type === 'feed') {
+    next.patience = Math.min(100, previous.patience + 2);
+    next = addEvidence(next, { title: '喂了一点光', kind: 'behavior', category: '照料 / 喂食', supports: ['companion', 'curious'], note: '一颗光点滑进盒子里，它亮了一下。', time: '刚刚' });
   }
   if (type === 'listen') {
     next.patience = Math.min(100, previous.patience + 3);
@@ -680,10 +684,9 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
     let renderer;
     try {
       const scene = new THREE.Scene();
-      const camera = new THREE.OrthographicCamera(-3.8, 3.8, 3.3, -3.3, 0.1, 100);
-      camera.zoom = 1;
-      camera.position.set(4.6, 1.62, 8.2);
-      camera.lookAt(0, 0.16, 0);
+      const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+      const cameraTarget = new THREE.Vector3(0, 0.16, 0);
+      const cameraDirection = new THREE.Vector3(3.55, 1.46, 8.3).normalize();
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setClearColor(0x000000, 0);
@@ -717,7 +720,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       };
       const boxOffset = new THREE.Vector3(0, 0, 0);
       const boxMaterial = createBoxMaterial('#F1EAE1', boxOffset, lightField);
-      const box = new THREE.Mesh(new RoundedBoxGeometry(3.45, 3.35, 2.65, 18, 0.4), boxMaterial);
+      const box = new THREE.Mesh(new RoundedBoxGeometry(3.8, 3.35, 2.45, 18, 0.4), boxMaterial);
       box.position.set(0, 0.04, 0);
       // Keep the approved geometry; give the hero object a little more visual presence.
       box.scale.setScalar(1.12);
@@ -754,7 +757,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
         fragmentShader: `varying vec2 vUv; void main(){float d=distance(vUv,vec2(.5)); float a=smoothstep(.52,.05,d)*.16; gl_FragColor=vec4(.23,.21,.19,a);}`,
       });
-      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 1.7), shadowMaterial);
+      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(4.15, 1.7), shadowMaterial);
       shadow.rotation.x = -Math.PI / 2;
       shadow.position.set(0, -1.5, 0.1);
       stage.add(shadow);
@@ -767,7 +770,7 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         vertexShader: `varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
         fragmentShader: `uniform vec3 uColor; uniform float uStrength; varying vec2 vUv; void main(){float d=distance(vUv,vec2(.5)); float a=smoothstep(.5,.02,d)*uStrength; gl_FragColor=vec4(uColor,a);}`,
       });
-      const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.75, 1.55), glowMaterial);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(3.95, 1.55), glowMaterial);
       glow.rotation.x = -Math.PI / 2;
       glow.position.set(0, -1.49, 0.08);
       stage.add(glow);
@@ -777,9 +780,10 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       const interactionTarget = new THREE.Vector3(0.08, 0.05, 0.54);
       const interactionPosition = interactionTarget.clone();
       const interactionVelocity = new THREE.Vector3();
+      let observedFeedbackStamp = feedbackRef.current.stamp;
       const localPoint = new THREE.Vector3();
       const localNormal = new THREE.Vector3(0, 0, 1);
-      const boxHalfExtents = new THREE.Vector3(1.725, 1.675, 1.325);
+      const boxHalfExtents = new THREE.Vector3(1.9, 1.675, 1.225);
       const pointerState = {
         isOverBox: false,
         isPressed: false,
@@ -873,6 +877,18 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         const motion = style.motion;
         const cycleTime = elapsed * ((Math.PI * 2) / Math.max(motion.cycle, 1)) * (reducedMotion ? 0 : motion.speed);
         const feedbackAge = (Date.now() - feedbackRef.current.stamp) / 1000;
+        const interactionType = feedbackRef.current.type;
+        if (feedbackRef.current.stamp !== observedFeedbackStamp) {
+          observedFeedbackStamp = feedbackRef.current.stamp;
+          if (!pointerState.hasRaycastHit) {
+            const focus = {
+              knock: [0, 0, 0.62], wait: [-0.42, 0.34, 0.52], touch: [0.4, -0.2, 0.66],
+              listen: [0.02, 0.42, 0.46], feed: [0, -0.28, 0.68], reply: [0, 0.04, 0.58],
+            }[interactionType];
+            if (focus) interactionTarget.set(...focus);
+            pointerProximity = Math.max(pointerProximity, 0.56);
+          }
+        }
         const recentlyApproached = pointerState.isOverBox;
         const hoverTarget = recentlyApproached ? 1 : 0;
         hoverAmount = THREE.MathUtils.damp(hoverAmount, hoverTarget, recentlyApproached ? 8 : 4.5, delta);
@@ -905,13 +921,16 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         interactionVelocity.addScaledVector(targetWithDrift.sub(interactionPosition), stiffness * delta);
         interactionVelocity.multiplyScalar(Math.exp(-damping * delta));
         interactionPosition.addScaledVector(interactionVelocity, delta);
-        const responseDelay = motion.responseDelay;
-        const responseProgress = feedbackAge > responseDelay ? Math.min((feedbackAge - responseDelay) / 1.15, 1) : 0;
+        const responseShape = {
+          knock: [0.68, 1.02, 0.88], wait: [0.16, 1.38, 0.62], touch: [0.1, 0.82, 0.96],
+          listen: [0.14, 1.28, 0.76], feed: [0.08, 1.12, 0.92], reply: [motion.responseDelay, 1.08, 0.58],
+        }[interactionType] || [motion.responseDelay, 1.15, 0.48];
+        const responseProgress = feedbackAge > responseShape[0] ? Math.min((feedbackAge - responseShape[0]) / responseShape[1], 1) : 0;
         const responsePulse = Math.sin(responseProgress * Math.PI);
         const approachStrength = hoverAmount * (0.32 + pointerProximity * 0.42);
         lightField.uInteractionPosition.value.copy(interactionPosition);
         lightField.uInteractionColor.value.copy(style.colors[0]);
-        lightField.uInteractionStrength.value = THREE.MathUtils.clamp(approachStrength + responsePulse * 0.48 + (feedbackRef.current.type === 'knock' ? 0.12 : 0), 0, 1.35);
+        lightField.uInteractionStrength.value = THREE.MathUtils.clamp(approachStrength + responsePulse * responseShape[2] + (interactionType === 'knock' ? 0.08 : 0), 0, 1.35);
         lightField.uAtmosphereColor.value.copy(style.atmosphereColor);
         lightField.uAtmosphereStrength.value = 0.055 + style.optical.intensity * 0.045;
         lightField.uIntensity.value = style.optical.intensity;
@@ -957,14 +976,17 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
       const onResize = () => {
         renderer.setSize(mount.clientWidth, mount.clientHeight);
         const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1);
-        // Keep world units square on screen; deriving both spans from aspect prevents
-        // the orthographic projection from stretching the box across wide desktop stages.
-        const viewHeight = aspect > 1.7 ? 4.5 : aspect < 1.45 ? 4.9 : 4.4;
-        const viewWidth = viewHeight * Math.max(aspect, 0.1);
-        camera.left = -viewWidth * 0.5;
-        camera.right = viewWidth * 0.5;
-        camera.top = viewHeight * 0.54;
-        camera.bottom = -viewHeight * 0.46;
+        camera.aspect = Math.max(aspect, 0.1);
+        const compactDesktopColumn = window.innerWidth > 700 && window.innerWidth <= 1100 && aspect < 1.45;
+        const compactMobileStage = window.innerWidth <= 700 && aspect < 1.45;
+        cameraTarget.x = compactMobileStage ? 0.18 : 0;
+        cameraTarget.y = compactDesktopColumn ? -0.82 : 0.16;
+        // Keep a consistent world-space framing while allowing the near face to
+        // read slightly larger than the far edges, as it would in a real view.
+        const viewHeight = compactDesktopColumn ? 6.2 : compactMobileStage ? 6.2 : aspect > 1.7 ? 4.7 : aspect < 1.45 ? 5.1 : 4.7;
+        const distance = viewHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
+        camera.position.copy(cameraTarget).addScaledVector(cameraDirection, distance);
+        camera.lookAt(cameraTarget);
         camera.updateProjectionMatrix();
       };
       window.addEventListener('resize', onResize);
@@ -1080,9 +1102,9 @@ function IslandHotspotLayer({ onOpenHearing, onOpenVisitors, onOpenRelations }) 
 
 function IslandLabels() {
   return <div className="island-labels" aria-hidden="true">
-    <div className="island-label island-label-home"><span>我的盒子</span><strong>听见</strong><small>从这里开始靠近</small></div>
-    <div className="island-label island-label-visitor"><span>今日来访</span><strong>声音明信片</strong><small>一段匿名的观察</small></div>
-    <div className="island-label island-label-relation"><span>关系光痕</span><strong>慢慢抵达</strong><small>不必变成聊天</small></div>
+    <div className="island-label island-label-home"><span>我的盒子</span><strong>听见</strong><small>从这里靠近</small></div>
+    <div className="island-label island-label-visitor"><span>今日来访</span><strong>来访</strong><small>一段匿名观察</small></div>
+    <div className="island-label island-label-relation"><span>关系</span><strong>慢慢抵达</strong><small>不必聊天</small></div>
   </div>;
 }
 
@@ -1093,7 +1115,7 @@ function IslandCollage({ onOpenHearing, onOpenVisitors, onOpenRelations }) {
     <StickerArtworkLayer />
     <IslandHotspotLayer onOpenHearing={onOpenHearing} onOpenVisitors={onOpenVisitors} onOpenRelations={onOpenRelations} />
     <IslandLabels />
-    <p className="island-collage-caption">三座小岛，三种靠近方式。先听见，再决定要不要留下。</p>
+    <p className="island-collage-caption">三座小岛，三种靠近。</p>
   </div>;
 }
 
@@ -1116,14 +1138,22 @@ const ISLAND_VISITORS = [
   },
 ];
 
+const MY_ISLAND_DECOR = [
+  { id: 'shell', title: '回声贝', note: '收住一声轻响，等它慢慢回来。', sticker: '/assets/stickers/listening-ear-sticker.png' },
+  { id: 'lamp', title: '潮汐小灯', note: '天色暗下来时，亮一会儿就好。', sticker: '/assets/stickers/unknown-presence-sticker.png' },
+  { id: 'boat', title: '等船的小码头', note: '小船停在这里，准备去邻岛看看。', sticker: '/assets/stickers/island-postcard-sticker.png' },
+];
+
 function App() {
   const [state, setState] = useState(loadState);
   const [activePresetId, setActivePresetId] = useState(loadLightPresetId);
   const [previewPresetId, setPreviewPresetId] = useState(null);
   const [skinPulse, setSkinPulse] = useState(0);
-  const previewTab = import.meta.env.DEV && new URLSearchParams(window.location.search).get('preview') === 'island' ? 'island' : 'box';
+  const previewMode = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('preview') : null;
+  const previewTab = previewMode === 'island' || previewMode === 'my-island' ? 'island' : previewMode === 'profile' ? 'profile' : 'box';
   const [tab, setTab] = useState(previewTab);
-  const [islandView, setIslandView] = useState('map');
+  const [islandView, setIslandView] = useState(previewMode === 'my-island' ? 'my-island' : 'map');
+  const [selectedIslandDecor, setSelectedIslandDecor] = useState('shell');
   const [selectedVisitorId, setSelectedVisitorId] = useState(null);
   const [savedVisits, setSavedVisits] = useState(() => {
     try { return JSON.parse(localStorage.getItem('knockknock.saved-visits.v1') || '[]'); } catch { return []; }
@@ -1146,7 +1176,7 @@ function App() {
   const [postcardDraft, setPostcardDraft] = useState('soft-knock');
   const [postcardStatus, setPostcardStatus] = useState('idle');
   const [postcardReply, setPostcardReply] = useState(false);
-  const [message, setMessage] = useState('盒子里很安静。你可以从一次轻敲开始。');
+  const [message, setMessage] = useState('盒子里很安静。敲两下试试。');
   const soundEnabled = state.soundEnabled !== false;
   const responseTimerRef = useRef(null);
   const postcardReplyTimerRef = useRef(null);
@@ -1215,7 +1245,7 @@ function App() {
     setState(previous => updateFromInteraction(previous, type));
     setSkinPulse(Date.now());
     setFeedback({ type: 'reply', stamp: Date.now() });
-    setMessage(type === 'wait' ? '你等到了。光慢慢靠近，又安静停住。' : '它停了一下，再轻轻回应。');
+    setMessage(type === 'wait' ? '光慢慢靠近，又停住了。' : type === 'feed' ? '它亮了一下，像是吃到了。' : '它停了一下，回应了。');
     if (soundEnabled) playTone('reply');
     responseTimerRef.current = null;
     setBusy(false);
@@ -1231,19 +1261,23 @@ function App() {
       lastInteractionAt: Date.now(),
     }));
     if (type === 'knock') {
-      setMessage('两下轻敲，已经送进盒子里了。');
+      setMessage('两下轻敲，送到了。');
       if (soundEnabled) playKnockPair();
       responseTimerRef.current = window.setTimeout(() => commitReply('knock'), 1800);
     } else if (type === 'wait') {
-      setMessage('沙沙一声，先把一点时间留给它。');
+      setMessage('先陪它等一会儿。');
       if (soundEnabled) playSoftRustle();
       responseTimerRef.current = window.setTimeout(() => commitReply('wait'), 2400);
     } else if (type === 'touch') {
-      setMessage('两声很轻的叩响。光朝你的手边挪近了一点。');
+      setMessage('光朝你的手边靠近了。');
       if (soundEnabled) playKnockPair(true);
       responseTimerRef.current = window.setTimeout(() => commitReply('touch'), 550);
+    } else if (type === 'feed') {
+      setMessage('一点光滑进盒子里了。');
+      if (soundEnabled) playTone('reply');
+      responseTimerRef.current = window.setTimeout(() => commitReply('feed'), 850);
     } else {
-      setMessage('一声低低的回响，像有什么在里面活动。');
+      setMessage('听见一声回响。');
       if (soundEnabled) playListenSound();
       responseTimerRef.current = window.setTimeout(() => commitReply('listen'), 1550);
     }
@@ -1266,11 +1300,11 @@ function App() {
     setPostcardOpen(false);
     setPostcardStatus('sent');
     setPostcardReply(false);
-    setMessage('声音明信片已经寄出。对方可能在很晚的时候听见。');
+    setMessage('回应寄出了。它可能晚一点听见。');
     postcardReplyTimerRef.current = window.setTimeout(() => {
       setPostcardStatus('replied');
       setPostcardReply(true);
-      setMessage('047 号盒子回了一段更轻的声音。');
+      setMessage('047 号盒子回了一点更轻的回应。');
       if (soundEnabled) playTone('reply');
     }, 3200);
   };
@@ -1309,27 +1343,30 @@ function App() {
   ];
 
   const activePreset = getLightPreset(activePresetId);
+  const selectedIslandDecorItem = MY_ISLAND_DECOR.find(item => item.id === selectedIslandDecor) || MY_ISLAND_DECOR[0];
   const currentTabCopy = COPY.tabs[tab];
   const [sectionLabel, sectionTitle, sectionCopy] = [currentTabCopy.label, currentTabCopy.title, currentTabCopy.copy];
   const phoneHeaderCopy = tab === 'island' && islandView === 'map'
-    ? ['盒群岛 · 匿名来访', '盒子之间会互相来访', '主人保持匿名；你可以留下回应，也可以先去看看另一只盒子。']
+    ? ['盒群岛 · 盒子之间', '小岛和来访', '先看看自己的小岛，也可以乘船去邻岛。']
+    : tab === 'island' && islandView === 'my-island'
+      ? ['我的小岛 · 盒子的家', '给它一座小岛', '摆上喜欢的小装置，让它按自己的性格生活。']
     : tab === 'island' && islandView === 'visitors'
-    ? ['群岛 · 来访', '来访记录', '这些声音来自远处的小岛；先听见，再决定要不要回应。']
+    ? ['群岛 · 来访', '来访', '远处的盒子，留下了一点回应。']
     : tab === 'island' && islandView === 'visitor-detail'
-      ? ['群岛 · 访客详情', '一段匿名的靠近', '它留下了一个具体的瞬间，但没有留下完整身份。']
+      ? ['来访详情', '一段匿名的回应', '它留下了片刻，没有留下身份。']
       : tab === 'island' && islandView === 'relations'
-        ? ['群岛 · 关系光痕', '相遇被留下了', '这里记录交换过的声音，不制造即时聊天。']
+        ? ['群岛 · 关系', '相遇留下了', '这里记录盒子之间的来往。']
         : [sectionLabel, sectionTitle, sectionCopy];
   const hoveredAction = COPY.actions[hoverAction];
   const presenceCopy = COPY.state[state.presenceState] || COPY.state.idle;
   const hoverCopy = hoveredAction ? [hoveredAction.label, hoveredAction.hover] : [presenceCopy.eyebrow, presenceCopy.title];
-  const interactionClasses = { knock: 'is-knocking', wait: 'is-waiting', touch: 'is-touching', listen: 'is-listening' };
+  const interactionClasses = { knock: 'is-knocking', wait: 'is-waiting', touch: 'is-touching', listen: 'is-listening', feed: 'is-feeding' };
   const reactionSticker = {
     wait: '/assets/stickers/wait-hourglass-sticker.png',
     touch: '/assets/stickers/gentle-touch-sticker.png',
     listen: '/assets/stickers/listening-ear-sticker.png',
   }[feedback.type];
-  const todayNote = state.interactions > 0 ? state.lastEvent : '今天还没有新的片刻。可以敲两下，看看它会不会回应。';
+  const todayNote = state.interactions > 0 ? state.lastEvent : '还没有新的片刻。敲两下试试。';
   const visibleEvidence = state.evidence.filter(item => evidenceFilter === 'all' || (evidenceFilter === 'sound' ? item.kind === 'relationship' : evidenceFilter === 'light' ? item.kind === 'origin' : item.kind === 'behavior'));
   const selectedStageData = EXPLORATION_STAGES.find(stage => stage.id === selectedStage);
   const selectedStageEvidence = selectedStageData ? state.evidence.filter(item => selectedStageData.evidenceKinds.includes(item.kind)).slice(0, 2) : [];
@@ -1358,10 +1395,10 @@ function App() {
         <div className="scene-controls">
           <div className="scene-control-head"><span className="eyebrow">{hoverCopy[0]}</span><small className="scene-touch-hint">靠近会引出光点 · 也可轻触盒面</small></div>
           <div className="scene-message"><strong>{hoverCopy[1]}</strong><small>{message}</small><div className="scene-quick-actions">
-            <button type="button" disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('knock')} onBlur={() => setHoverAction(null)}><img className="action-sticker action-sticker--knock" src="/assets/stickers/knock-hand-sticker.png" alt="" aria-hidden="true" /><span>敲两下</span></button>
+            <button type="button" className={busy && feedback.type === 'knock' ? 'is-current-action' : ''} disabled={busy} onClick={() => doInteraction('knock')} onMouseEnter={() => setHoverAction('knock')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('knock')} onBlur={() => setHoverAction(null)}><img className="action-sticker action-sticker--knock" src="/assets/stickers/knock-hand-sticker.png" alt="" aria-hidden="true" /><span>敲两下</span></button>
             <button type="button" className={busy && feedback.type === 'wait' ? 'is-current-action' : ''} disabled={busy} onClick={() => doInteraction('wait')} onMouseEnter={() => setHoverAction('wait')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('wait')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/wait-hourglass-sticker.png" alt="" aria-hidden="true" /><span>等一会儿</span></button>
-            <button type="button" disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('touch')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/gentle-touch-sticker.png" alt="" aria-hidden="true" /><span>轻轻碰</span></button>
-            <button type="button" disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('listen')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/listening-ear-sticker.png" alt="" aria-hidden="true" /><span>听听看</span></button>
+            <button type="button" className={busy && feedback.type === 'touch' ? 'is-current-action' : ''} disabled={busy} onClick={() => doInteraction('touch')} onMouseEnter={() => setHoverAction('touch')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('touch')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/gentle-touch-sticker.png" alt="" aria-hidden="true" /><span>轻轻碰</span></button>
+            <button type="button" className={busy && feedback.type === 'listen' ? 'is-current-action' : ''} disabled={busy} onClick={() => doInteraction('listen')} onMouseEnter={() => setHoverAction('listen')} onMouseLeave={() => setHoverAction(null)} onFocus={() => setHoverAction('listen')} onBlur={() => setHoverAction(null)}><img className="action-sticker" src="/assets/stickers/listening-ear-sticker.png" alt="" aria-hidden="true" /><span>听听看</span></button>
           </div></div>
         </div>
       </section>
@@ -1378,68 +1415,88 @@ function App() {
               </section>
 
               {tab === 'box' && <section className="phone-home">
-                 <div className="today-note"><span className="tape-strip"></span><span className="eyebrow">今天留给你的便签</span><strong>{todayNote}</strong><small>每次回应，都会成为一条线索。</small><img className="note-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="未知陪伴者的抽象渐变贴纸" /><span className="note-preset-chip"><i style={{ background: `linear-gradient(135deg, ${activePreset.colors.blobs[0]}, ${activePreset.colors.blobs[1]}, ${activePreset.colors.blobs[2]})` }}></i>{activePreset.subtitle}</span></div>
-                <div className="care-social-card"><div className="care-social-card__sticker"><img src="/assets/stickers/unknown-presence-sticker.png" alt="" aria-hidden="true" /></div><div className="care-social-card__copy"><span className="eyebrow">今天的照料 · 盒群岛</span><strong>先陪好自己的盒子，再去看看别的盒子。</strong><small>{ISLAND_VISITORS.length} 个匿名盒子留下了来访；你也可以把一点回应寄出去。</small><button type="button" className="text-link-button" onClick={() => setTab('island')}>去群岛看看 <span>↗</span></button></div></div>
-                <div className="phone-progress-card"><div className="progress-card-head"><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><div className="progress-track"><i style={{ width: `${state.currentCycle.progress}%` }}></i></div><p>进度记录相处阶段，不代表它的身份。</p><button type="button" className="text-link-button" onClick={() => setProgressOpen(true)}>查看探索阶段 <span>↗</span></button></div>
-                <div className="phone-personality-snapshot"><div className="phone-section-line"><span>猜猜它的性格</span><span>只是目前的猜测</span></div><div className="personality-chip-grid">{PERSONALITY_COPY.slice(0, 3).map(([id, title]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' ? 'curious' : 'night'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div></div>
+                 <div className="today-note"><span className="tape-strip"></span><span className="eyebrow">今天的便签</span><strong>{todayNote}</strong><small>每次回应，都会留下线索。</small><img className="note-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="未知陪伴者的抽象渐变贴纸" /><span className="note-preset-chip"><i style={{ background: `linear-gradient(135deg, ${activePreset.colors.blobs[0]}, ${activePreset.colors.blobs[1]}, ${activePreset.colors.blobs[2]})` }}></i>{activePreset.subtitle}</span></div>
+                <div className="care-social-card"><div className="care-social-card__sticker"><img src="/assets/stickers/unknown-presence-sticker.png" alt="" aria-hidden="true" /></div><div className="care-social-card__copy"><span className="eyebrow">今天的照料 · 我的小岛</span><strong>给盒子留了一处小小的家。</strong><small>回声贝、小灯和一只等着出发的小船。</small><div className="care-social-card__actions"><button type="button" className="care-feed-button" disabled={busy} onClick={() => doInteraction('feed')}><Icon name="light" />喂一点光</button><button type="button" className="text-link-button" onClick={() => { setIslandView('my-island'); setTab('island'); }}>看看我的小岛 <span>↗</span></button></div></div></div>
+                <div className="phone-progress-card"><div className="progress-card-head"><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><div className="progress-track"><i style={{ width: `${state.currentCycle.progress}%` }}></i></div><p>进度只记录相处，不定义它。</p><button type="button" className="text-link-button" onClick={() => setProgressOpen(true)}>查看阶段 <span>↗</span></button></div>
+                <div className="phone-personality-snapshot"><div className="phone-section-line"><span>猜猜它</span><span>暂时印象</span></div><div className="personality-chip-grid">{PERSONALITY_COPY.slice(0, 3).map(([id, title]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' ? 'curious' : 'night'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div></div>
                 <div className="phone-recent-evidence"><div className="phone-section-line"><span>最近的线索</span><span>{state.evidence.length} 条</span></div>{state.evidence.slice(0, 2).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}<button type="button" className="text-link-button" onClick={() => setTab('evidence')}>查看全部记录 <span>↗</span></button></div>
               </section>}
 
-               {tab === 'evidence' && <section className="phone-evidence"><div className="evidence-filter-row" role="tablist" aria-label="证据筛选"><button type="button" className={evidenceFilter === 'all' ? 'active' : ''} onClick={() => setEvidenceFilter('all')}>全部</button><button type="button" className={evidenceFilter === 'light' ? 'active' : ''} onClick={() => setEvidenceFilter('light')}>光线</button><button type="button" className={evidenceFilter === 'sound' ? 'active' : ''} onClick={() => setEvidenceFilter('sound')}>声音</button><button type="button" className={evidenceFilter === 'touch' ? 'active' : ''} onClick={() => setEvidenceFilter('touch')}>靠近</button></div><div className="sticker-wall"><div className="sticker sticker-orange"><StickerGlyph kind="curious" /><span>还没<br />命名</span></div><div className="sticker sticker-yellow"><StickerGlyph kind="patient" /><span>它等了<br />一会儿</span></div><div className="sticker sticker-blue"><StickerGlyph kind="night" /><span>一段<br />声音</span></div><div className="sticker sticker-pink"><StickerGlyph kind="warm" /><span>第三次<br />来访</span></div></div><div className="evidence-scrap-row" aria-label="证据碎片"><div className="evidence-scrap signal-scrap"><span>今日信号</span><SignalWave active={feedback.type === 'reply'} /><small>02:36 / 有一点回来</small></div><div className="evidence-scrap gradient-scrap"><MiniBoxArt preset={getLightPreset(activePresetId)} /><small>光场碎片 / {getLightPreset(activePresetId).title[0]}</small></div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.filter(id => BADGE_DETAILS[id]).length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} onOpen={setSelectedBadge} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{visibleEvidence.slice(0, 4).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}{visibleEvidence.length === 0 && <p className="empty-evidence">这一类线索还没有留下来。</p>}</div></section>}
+               {tab === 'evidence' && <section className="phone-evidence"><div className="evidence-filter-row" role="tablist" aria-label="证据筛选"><button type="button" className={evidenceFilter === 'all' ? 'active' : ''} onClick={() => setEvidenceFilter('all')}>全部</button><button type="button" className={evidenceFilter === 'light' ? 'active' : ''} onClick={() => setEvidenceFilter('light')}>光线</button><button type="button" className={evidenceFilter === 'sound' ? 'active' : ''} onClick={() => setEvidenceFilter('sound')}>声音</button><button type="button" className={evidenceFilter === 'touch' ? 'active' : ''} onClick={() => setEvidenceFilter('touch')}>靠近</button></div><div className="sticker-wall"><div className="sticker sticker-orange"><StickerGlyph kind="curious" /><span><strong>名字还空着</strong><small>慢慢想就好</small></span></div><div className="sticker sticker-yellow"><StickerGlyph kind="patient" /><span><strong>等到回应</strong><small>光靠近了一点</small></span></div><div className="sticker sticker-blue"><StickerGlyph kind="night" /><span><strong>一声轻响</strong><small>从盒子深处来</small></span></div><div className="sticker sticker-pink"><StickerGlyph kind="warm" /><span><strong>又见面了</strong><small>熟悉的光回来</small></span></div></div><div className="evidence-scrap-row" aria-label="证据碎片"><div className="evidence-scrap signal-scrap"><span>今日信号</span><SignalWave active={feedback.type === 'reply'} /><small>02:36 / 有一点回来</small></div><div className="evidence-scrap gradient-scrap"><MiniBoxArt preset={getLightPreset(activePresetId)} /><small>光场碎片 / {getLightPreset(activePresetId).title[0]}</small></div></div><div className="phone-section-line"><span>小小的收藏</span><span>{state.badges.filter(id => BADGE_DETAILS[id]).length} 张</span></div><div className="phone-badge-list">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} onOpen={setSelectedBadge} />)}</div><div className="phone-evidence-log"><span className="eyebrow">最近留下</span>{visibleEvidence.slice(0, 4).map(item => <button className="log-row log-row-button" key={item.id} type="button" onClick={() => setSelectedEvidence(item)}><span className={`log-dot ${item.kind}`}></span><span><strong>{item.title}</strong><small>{item.note}</small></span><time>{item.time}</time></button>)}{visibleEvidence.length === 0 && <p className="empty-evidence">这一类线索还没有留下来。</p>}</div></section>}
 
-                {tab === 'island' && (islandView === 'visitor-detail' ? <section className="phone-island island-visitor-detail-page">
+                {tab === 'island' && (islandView === 'my-island' ? <section className="phone-island my-island-page">
+                 <button className="island-back-button" type="button" onClick={() => setIslandView('map')}><span aria-hidden="true">←</span> 回到盒群岛</button>
+                 <div className="my-island-scene" aria-label="盒子的小岛布置：小屋、回声贝、潮汐小灯和停靠的小船">
+                   <span className="my-island-sun" aria-hidden="true">✳</span>
+                   <span className="my-island-route my-island-route--one" aria-hidden="true"></span>
+                   <span className="my-island-route my-island-route--two" aria-hidden="true"></span>
+                   <div className="my-island-home-sticker"><img src="/assets/stickers/unknown-presence-sticker.png" alt="盒子的家" /><small>盒子的小屋</small></div>
+                   <div className="my-island-item my-island-item--shell"><img src="/assets/stickers/listening-ear-sticker.png" alt="回声贝装置" /><small>回声贝</small></div>
+                   <div className="my-island-item my-island-item--lamp"><span aria-hidden="true">✦</span><small>潮汐小灯</small></div>
+                   <div className="my-island-item my-island-item--boat"><img src="/assets/stickers/island-postcard-sticker.png" alt="停靠的小船" /><small>小船停靠处</small></div>
+                   <p>风很轻，小船还没有出发。</p>
+                 </div>
+                 <div className="phone-section-line"><span>岛上装置</span><span>已摆好 · 3 件</span></div>
+                 <div className="my-island-decor-shelf">{MY_ISLAND_DECOR.map(item => <button type="button" key={item.id} className={`my-island-decor ${selectedIslandDecor === item.id ? 'is-selected' : ''}`} onClick={() => setSelectedIslandDecor(item.id)}><img src={item.sticker} alt="" aria-hidden="true" /><span><strong>{item.title}</strong><small>{item.note}</small></span><i aria-hidden="true">{selectedIslandDecor === item.id ? '✓' : '·'}</i></button>)}</div>
+                 <div className="my-island-detail-note"><span className="eyebrow accent">这件小东西</span><strong>{selectedIslandDecorItem.title}</strong><p>{selectedIslandDecorItem.note}</p></div>
+                 <button className="island-visitors-link" type="button" onClick={() => setIslandView('visitors')}><span>让小船去看看别的盒子</span><b aria-hidden="true">↗</b></button>
+                 <p className="island-privacy-note">这是盒子的家。去邻岛时，也是盒子和盒子相遇。</p>
+                </section> : islandView === 'visitor-detail' ? <section className="phone-island island-visitor-detail-page">
                  <button className="island-back-button" type="button" onClick={() => { setIslandView('visitors'); setSelectedVisitorId(null); }}><span aria-hidden="true">←</span> 回到来访</button>
-                 <div className="visitor-detail-hero"><div><span className="eyebrow accent">访客详情 · {selectedVisitor.time}</span><h3>{selectedVisitor.id} 号盒子</h3><p>来自 {selectedVisitor.place} 的一段匿名痕迹。</p></div><img src="/assets/stickers/island-postcard-sticker.png" alt="声音明信片贴纸" /></div>
-                 <div className="visitor-detail-card"><div className="visitor-detail-meta"><span>它留下了什么</span><b>2.4 秒 · 轻响</b></div><SignalWave active /><p>{selectedVisitor.trace}</p><small>{selectedVisitor.ownerNote}</small></div>
-                 <div className="visitor-detail-origin"><img src="/assets/stickers/island-marker-sticker.png" alt="来访小岛标记" /><div><span className="eyebrow">来自哪里</span><strong>{selectedVisitor.place}</strong><p>地图上的邻近小岛，保持匿名，不显示完整身份。</p></div></div>
-                 <div className="visitor-detail-actions"><button className="primary-button" type="button" onClick={() => setIslandHearingOpen(true)}>听听它留下的声音</button><button className="island-visitors-link" type="button" onClick={() => { setSavedVisits(previous => previous.includes(selectedVisitor.id) ? previous : [...previous, selectedVisitor.id]); setMessage(`${selectedVisitor.id} 号盒子的来访已收进记录。`); }}><span>{savedVisits.includes(selectedVisitor.id) ? '已经收进记录' : '收进来访记录'}</span><b aria-hidden="true">↗</b></button><button className="visitor-quiet-button" type="button" onClick={() => { setIslandView('visitors'); setSelectedVisitorId(null); }}>暂时不回应</button></div>
-                 <p className="island-privacy-note">这是本地演示访客，不是真实在线用户；沉默也可以是一种选择。</p>
+                 <div className="visitor-detail-hero"><div><span className="eyebrow accent">来访详情 · {selectedVisitor.time}</span><h3>{selectedVisitor.id} 号盒子</h3><p>来自 {selectedVisitor.place} 的匿名回应。</p></div><img src="/assets/stickers/island-postcard-sticker.png" alt="声音明信片贴纸" /></div>
+                 <div className="visitor-detail-card"><div className="visitor-detail-meta"><span>它留下了</span><b>2.4 秒 · 轻响</b></div><SignalWave active /><p>{selectedVisitor.trace}</p><small>{selectedVisitor.ownerNote}</small></div>
+                 <div className="visitor-detail-origin"><img src="/assets/stickers/island-marker-sticker.png" alt="来访小岛标记" /><div><span className="eyebrow">来自</span><strong>{selectedVisitor.place}</strong><p>匿名小岛，不显示身份。</p></div></div>
+                 <div className="visitor-detail-actions"><button className="primary-button" type="button" onClick={() => setIslandHearingOpen(true)}>听听回应</button><button className="island-visitors-link" type="button" onClick={() => { setSavedVisits(previous => previous.includes(selectedVisitor.id) ? previous : [...previous, selectedVisitor.id]); setMessage('已收进记录。'); }}><span>{savedVisits.includes(selectedVisitor.id) ? '已收进记录' : '收进记录'}</span><b aria-hidden="true">↗</b></button><button className="visitor-quiet-button" type="button" onClick={() => { setIslandView('visitors'); setSelectedVisitorId(null); }}>暂时不回应</button></div>
+                 <p className="island-privacy-note">示例访客，不是真实用户；不回应也可以。</p>
                 </section> : islandView === 'visitors' ? <section className="phone-island island-visitors-page">
                  <button className="island-back-button" type="button" onClick={() => setIslandView('map')}><span aria-hidden="true">←</span> 回到群岛</button>
-                 <div className="island-visitors-heading"><span className="eyebrow accent">今日来访 · {ISLAND_VISITORS.length} 张明信片</span><h3>从远处寄来的相处片刻</h3><p>每封回信都慢一点，也都只讲一个具体的瞬间。</p><img src="/assets/stickers/island-postcard-sticker.png" alt="一枚声音明信片贴纸" /></div>
+                 <div className="island-visitors-heading"><span className="eyebrow accent">今日来访 · {ISLAND_VISITORS.length} 张</span><h3>远处盒子的片刻</h3><p>每封回信，只说一个瞬间。</p><img src="/assets/stickers/island-postcard-sticker.png" alt="一枚声音明信片贴纸" /></div>
                  <div className="visitor-card-list">{ISLAND_VISITORS.map(visitor => {
                    const saved = savedVisits.includes(visitor.id);
                    return <article className="visitor-card" key={visitor.id}>
                      <div className="visitor-card-meta"><span>{visitor.id} 号盒子 · {visitor.place}</span><time>{visitor.time}</time></div>
-                     <div className="visitor-owner-note"><img src={visitor.sticker} alt="" aria-hidden="true" /><div><small>主人捎来的话</small><blockquote>“{visitor.ownerNote}”</blockquote></div></div>
+                     <div className="visitor-owner-note"><img src={visitor.sticker} alt="" aria-hidden="true" /><div><small>主人留下的话</small><blockquote>“{visitor.ownerNote}”</blockquote></div></div>
                      <p className="visitor-trace">{visitor.trace}</p>
-                     <div className="visitor-card-actions"><button type="button" onClick={() => { setSelectedVisitorId(visitor.id); setIslandView('visitor-detail'); }}>查看访客详情 ↗</button><button type="button" onClick={() => { if (soundEnabled) playListenSound(); setMessage(`听见了 ${visitor.id} 号盒子寄来的轻响。`); }}>听这段回声</button><button type="button" className={saved ? 'is-saved' : ''} onClick={() => setSavedVisits(current => saved ? current.filter(id => id !== visitor.id) : [...current, visitor.id])}>{saved ? '已收进明信片册' : '收进明信片册'}</button></div>
+                     <div className="visitor-card-actions"><button type="button" onClick={() => { setSelectedVisitorId(visitor.id); setIslandView('visitor-detail'); }}>查看详情 ↗</button><button type="button" onClick={() => { if (soundEnabled) playListenSound(); setMessage(`听见了 ${visitor.id} 号盒子寄来的轻响。`); }}>听听回声</button><button type="button" className={saved ? 'is-saved' : ''} onClick={() => setSavedVisits(current => saved ? current.filter(id => id !== visitor.id) : [...current, visitor.id])}>{saved ? '已收进' : '收进记录'}</button></div>
                    </article>;
                  })}</div>
-                  <p className="island-privacy-note">这里没有实时聊天。只有主人愿意分享的一小段观察，会在某个时候慢慢抵达。</p>
+                  <p className="island-privacy-note">这里没有聊天，只有慢慢抵达的一小段观察。</p>
                 </section> : islandView === 'relations' ? <section className="phone-island island-relations-page">
                   <button className="island-back-button" type="button" onClick={() => setIslandView('map')}><span aria-hidden="true">←</span> 回到群岛</button>
-                  <div className="island-relations-heading"><div><span className="eyebrow accent">关系光痕</span><h3>有些相遇，不需要变成聊天。</h3><p>这里只留下曾经靠近过的盒子，以及你们交换过的声音。</p></div><img src="/assets/stickers/island-reply-trace-sticker.png" alt="一枚延迟回信的光痕贴纸" /></div>
-                  <div className="relation-summary-grid"><div><b>{ISLAND_VISITORS.length}</b><span>遇见过</span></div><div><b>{state.postcards}</b><span>寄出的声音</span></div><div><b>{savedVisits.length}</b><span>收进记录</span></div></div>
+                  <div className="island-relations-heading"><div><span className="eyebrow accent">群岛 · 关系</span><h3>盒子之间，不必聊天。</h3><p>这里只留下来访和回应。</p></div><img src="/assets/stickers/island-reply-trace-sticker.png" alt="一枚延迟回信的光痕贴纸" /></div>
+                  <div className="relation-summary-grid"><div><b>{ISLAND_VISITORS.length}</b><span>来访</span></div><div><b>{state.postcards}</b><span>寄出</span></div><div><b>{savedVisits.length}</b><span>已收进</span></div></div>
                   <div className="relation-timeline">
-                    <article><span className="relation-dot relation-dot--peach"></span><div><small>最近一次来访 · {ISLAND_VISITORS[0].time}</small><strong>047 号盒子在雾岸岛留下了一段轻响。</strong><p>你还没有急着回应，先把这段痕迹留在这里。</p></div></article>
-                    <article><span className="relation-dot relation-dot--blue"></span><div><small>你寄出的声音 · {postcardStatus === 'replied' ? '刚刚有了回信' : postcardStatus === 'sent' ? '正在等待抵达' : '还没有寄出'}</small><strong>{postcardStatus === 'replied' ? '047 号盒子回了一段更轻的声音。' : postcardStatus === 'sent' ? '一张明信片正在去往另一座岛。' : '给另一座岛寄一段声音。'}</strong><p>{postcardStatus === 'replied' ? '沉默没有消失，只是多了一点可以记住的回应。' : '回信不会立刻出现；这也是群岛的一部分。'}</p></div></article>
+                    <article><span className="relation-dot relation-dot--peach"></span><div><small>最近来访 · {ISLAND_VISITORS[0].time}</small><strong>047 号盒子留下了一段轻响。</strong><p>先把这段痕迹留在这里。</p></div></article>
+                    <article><span className="relation-dot relation-dot--blue"></span><div><small>你寄出的回应 · {postcardStatus === 'replied' ? '刚刚有了回信' : postcardStatus === 'sent' ? '正在等待抵达' : '还没有寄出'}</small><strong>{postcardStatus === 'replied' ? '047 号盒子回了一点更轻的回应。' : postcardStatus === 'sent' ? '回应正在去往另一座岛。' : '给另一座岛留一句回应。'}</strong><p>{postcardStatus === 'replied' ? '多了一点可以记住的回应。' : '回信会晚一点。'}</p></div></article>
                   </div>
                   {postcardReply && <button className="island-visitors-link" type="button" onClick={() => setIslandHearingOpen(true)}><span>打开 047 号盒子的回信</span><b aria-hidden="true">↗</b></button>}
-                  <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出一段声音</button>
-                  <p className="island-privacy-note">演示中的访客与回信来自本地示例数据，不是实时在线用户。</p>
+                  <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出回应</button>
+                  <p className="island-privacy-note">示例数据，不是真实在线用户。</p>
                </section> : <section className="phone-island">
                  <div className="island-art-card"><IslandCollage onOpenHearing={() => setIslandHearingOpen(true)} onOpenVisitors={() => setIslandView('visitors')} onOpenRelations={() => setIslandView('relations')} /></div>
-                 <div className="island-social-note"><div className="island-social-note__copy"><span className="eyebrow accent">盒子之间 · 匿名来访</span><strong>乘一只小船，去看看另一只盒子。</strong><small>可以留下声音、光，或把一件小小的照料送过去。</small></div><img className="island-social-note__sticker" src="/assets/stickers/island-postcard-sticker.png" alt="一枚前往远处小岛的贴纸" /></div>
+                 <div className="island-hub-cards">
+                   <button className="island-hub-card island-hub-card--home" type="button" onClick={() => setIslandView('my-island')}><span className="eyebrow">自己的小岛</span><strong>给盒子留一处小小的家</strong><span className="island-hub-stickers" aria-hidden="true"><img src="/assets/stickers/unknown-presence-sticker.png" /><img src="/assets/stickers/listening-ear-sticker.png" /><img src="/assets/stickers/island-postcard-sticker.png" /></span><small>小屋、回声贝和等船的码头。</small><b>看看我的小岛 ↗</b></button>
+                   <button className="island-hub-card island-hub-card--visitors" type="button" onClick={() => setIslandView('visitors')}><span className="eyebrow">盒子和盒子</span><strong>乘小船，去邻岛坐一会儿</strong><span className="island-hub-stickers" aria-hidden="true"><img src="/assets/stickers/island-marker-sticker.png" /><img src="/assets/stickers/island-reply-trace-sticker.png" /></span><small>不交换主人身份，只留下来访和回应。</small><b>看看盒子来访 ↗</b></button>
+                 </div>
                   <div className="island-icon-grid"><button type="button" onClick={() => setIslandHearingOpen(true)} aria-label="听见声音"><span><Icon name="sound" /></span><small>听见</small></button><button type="button" onClick={() => setIslandView('visitors')} aria-label="看看来访"><span><Icon name="visit" /></span><small>来访</small></button><button type="button" onClick={() => setIslandView('relations')} aria-label="看看关系"><span><Icon name="relation" /></span><small>关系</small></button></div>
                  <div className="phone-section-line"><span>小船抵达</span><span>{ISLAND_VISITORS.length} 个匿名来访</span></div>
-                 <div className="postcard island-postcard-preview"><SignalWave active /><small>047 号盒子 · 主人捎来一段晚归后的观察</small></div>
+                 <div className="postcard island-postcard-preview"><SignalWave active /><small>047 号盒子 · 留下一段晚归后的观察</small></div>
                  <button className="island-visitors-link" type="button" onClick={() => setIslandView('visitors')}><span>打开今天的来访</span><b aria-hidden="true">↗</b></button>
                   <button className="primary-button" type="button" onClick={() => setPostcardOpen(true)}>寄出一段回应</button>
-                 <p className="island-postcard-caption">你不需要认识主人；让盒子替你留下一个具体的片刻。</p>
+                 <p className="island-postcard-caption">不必认识主人，让盒子替你留下片刻。</p>
                </section>)}
 
-               {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>一位慢热的伙伴</h3><p>这是根据目前线索形成的暂时理解。</p><div className="profile-doodle"><img className="profile-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="抽象渐变形态，代表尚未命名的伙伴" /><span>柔和 / 慢热 / 再靠近</span></div><div className="profile-progress-card"><div><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><i><em style={{ width: `${state.currentCycle.progress}%` }}></em></i><small>进度代表相处阶段，不代表它的身份。</small></div><div className="phone-section-line"><span>目前推测</span><span>可能继续变化</span></div><div className="personality-chip-grid profile-personality-grid">{PERSONALITY_COPY.map(([id, title, copy]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' || id === 'curious' ? 'curious' : id === 'nocturnal' ? 'night' : 'patient'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div><div className="phone-section-line"><span>伙伴纪念章</span><span>{state.badges.filter(id => state.badges.includes(id)).length} / {badges.length}</span></div><div className="badge-gallery">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} compact onOpen={setSelectedBadge} />)}</div><button type="button" className="clue-button" onClick={() => setProgressOpen(true)}><span>查看探索阶段</span><b>↗</b></button><p className="profile-footnote">下一次回应，也许会让这份理解变得不同。</p></section>}
+               {tab === 'profile' && <section className="phone-profile"><div className="profile-sticker">它有点像……</div><h3>它有点慢热</h3><p>这是目前的感觉。</p><div className="profile-doodle profile-sticker-wall" aria-label="性格想象贴纸：像猫、像狗，也可能都不像"><figure className="animal-sticker animal-sticker--cat"><svg viewBox="0 0 44 44" aria-hidden="true"><path d="M10 19 9 7l9 6c3-1 6-1 9 0l9-6-1 13c3 7 1 14-4 17-5 4-14 4-19 0-5-4-6-11-2-18Z" /><path d="M16 24h.1M28 24h.1M18 29c2 2 6 2 8 0" /><circle cx="35" cy="9" r="6" className="animal-question" /><text x="35" y="12">?</text></svg><figcaption>像猫？</figcaption></figure><figure className="animal-sticker animal-sticker--presence"><span className="presence-image-wrap"><img className="profile-presence-sticker" src="/assets/stickers/unknown-presence-sticker.png" alt="" aria-hidden="true" /><i>?</i></span><figcaption>还没决定</figcaption></figure><figure className="animal-sticker animal-sticker--dog"><svg viewBox="0 0 44 44" aria-hidden="true"><path d="M13 15C6 8 5 22 11 27M31 15c7-7 8 7 2 12M12 18c0-6 4-9 10-9s10 3 10 9v11c0 6-4 9-10 9s-10-3-10-9Z" /><path d="M17 23h.1M27 23h.1M19 29c1 2 5 2 6 0" /><circle cx="35" cy="9" r="6" className="animal-question" /><text x="35" y="12">?</text></svg><figcaption>像狗？</figcaption></figure></div><p className="profile-sticker-caption">也可能都不像，留一点空白给它。</p><div className="profile-progress-card"><div><span>这一轮的探索</span><b>{state.currentCycle.progress}%</b></div><i><em style={{ width: `${state.currentCycle.progress}%` }}></em></i><small>只记录相处，不定义它。</small></div><div className="phone-section-line"><span>现在的感觉</span><span>会变化</span></div><div className="personality-chip-grid profile-personality-grid">{PERSONALITY_COPY.map(([id, title, copy]) => <button type="button" className={`personality-chip personality-${id}`} key={id} onClick={() => setPersonalityOpen(id)}><StickerGlyph kind={id === 'companion' ? 'warm' : id === 'explorer' || id === 'curious' ? 'curious' : id === 'nocturnal' ? 'night' : 'patient'} /><span>{title}</span><b>{state.personality[id]}%</b></button>)}</div><div className="phone-section-line"><span>纪念贴纸</span><span>{state.badges.filter(id => state.badges.includes(id)).length} / {badges.length}</span></div><div className="badge-gallery">{badges.map(([id, title, copy]) => <StickerBadge key={id} id={id} title={title} copy={copy} unlocked={state.badges.includes(id)} compact onOpen={setSelectedBadge} />)}</div><button type="button" className="clue-button" onClick={() => setProgressOpen(true)}><span>查看阶段</span><b>↗</b></button><p className="profile-footnote">下一次回应，可能会改变它。</p></section>}
             </div>
             <nav className="bottom-nav" aria-label="App 主导航"><button aria-current={tab === 'box' ? 'page' : undefined} className={tab === 'box' ? 'active' : ''} onClick={() => setTab('box')}><span><Icon name="box" /></span><small>今天</small></button><button aria-current={tab === 'evidence' ? 'page' : undefined} className={tab === 'evidence' ? 'active' : ''} onClick={() => setTab('evidence')}><span><Icon name="evidence" /></span><small>记录</small></button><button aria-current={tab === 'island' ? 'page' : undefined} className={tab === 'island' ? 'active' : ''} onClick={() => { setIslandView('map'); setTab('island'); }}><span><Icon name="island" /></span><small>群岛</small></button><button aria-current={tab === 'profile' ? 'page' : undefined} className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}><span><Icon name="profile" /></span><small>性格</small></button></nav>
-            {drawerOpen && <div className="phone-overlay" role="presentation" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }}><aside className={`phone-drawer ${settingsOpen ? 'is-settings' : ''}`} role="dialog" aria-modal="true" aria-label={settingsOpen ? '设置菜单' : '贴纸抽屉'} onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }} aria-label="关闭菜单">×</button>{settingsOpen ? <>{resetConfirm ? <><span className="eyebrow accent">重新开始</span><h3>要重新开始吗？</h3><p>这会清除本地的证据、徽章和当前光场选择。这个动作不能撤回。</p><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => setResetConfirm(false)}>先不要</button><button className="drawer-action danger" type="button" onClick={reset}>清除并重新开始</button></div></> : <><span className="eyebrow accent">设置</span><h3>按你的节奏来</h3><p>你可以关闭声音，或重新开始这一轮。</p><div className="settings-list"><button type="button" onClick={() => setState(previous => ({ ...previous, soundEnabled: previous.soundEnabled === false }))}><span>声音回应</span><b>{soundEnabled ? '开启' : '关闭'}</b></button><button type="button" onClick={() => { setSettingsOpen(false); setTab('profile'); }}><span>性格档案</span><b>查看 ↗</b></button><button type="button" onClick={() => setResetConfirm(true)}><span>重新开始</span><b>需要确认</b></button></div></>} </> : <><span className="eyebrow accent">贴纸抽屉</span><h3>今天留下的</h3><p>一些还不能解释的东西，先放在这里。</p><div className="drawer-sticker-stack"><StickerBadge id="origin" compact /><StickerBadge id="waited" compact /><StickerBadge id="postcard" compact /><StickerBadge id="signal" compact /></div><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => { setDrawerOpen(false); setTab('evidence'); }}>收进证据册 <span>↗</span></button><button className="drawer-action" type="button" onClick={() => setSettingsOpen(true)}>设置 <span>⋯</span></button></div></>}</aside></div>}
-              {selectedEvidence && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setSelectedEvidence(null)}><section className="phone-sheet evidence-detail-sheet" role="dialog" aria-modal="true" aria-label="证据详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedEvidence(null)} aria-label="关闭证据详情">×</button><div className="evidence-detail-kicker"><span className={`log-dot ${selectedEvidence.kind}`}></span><span className="eyebrow accent">证据 · {selectedEvidence.time}</span></div><h3>{selectedEvidence.title}</h3><div className="evidence-detail-meta"><span>{selectedEvidence.category || '相处'}</span><span>相对观察，不是测量</span></div><p className="evidence-detail-copy">{selectedEvidence.note}</p><div className="evidence-detail-section"><span className="eyebrow">为什么留下</span><p>这条线索记录了一个具体的靠近、停留或回应，方便你回头看见变化。</p></div><div className="evidence-detail-section"><span className="eyebrow">支持的暂时理解</span>{getPersonalityEvidence(state.evidence, selectedEvidence.supports?.[0] || '').length > 0 ? <div className="evidence-support-chips">{(selectedEvidence.supports || []).map(id => { const item = PERSONALITY_COPY.find(entry => entry[0] === id); return item ? <span key={id}>{item[1]}</span> : null; })}</div> : <p>线索还不够，不急着替它下结论。</p>}</div><div className="sheet-mark"><Icon name={selectedEvidence.kind === 'relationship' ? 'sound' : selectedEvidence.kind === 'touch' ? 'light' : 'evidence'} /></div><small>这不是结论，只是它曾经靠近过的地方。</small></section></div>}
+            {drawerOpen && <div className="phone-overlay" role="presentation" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }}><aside className={`phone-drawer ${settingsOpen ? 'is-settings' : ''}`} role="dialog" aria-modal="true" aria-label={settingsOpen ? '设置菜单' : '贴纸抽屉'} onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => { setDrawerOpen(false); setSettingsOpen(false); setResetConfirm(false); }} aria-label="关闭菜单">×</button>{settingsOpen ? <>{resetConfirm ? <><span className="eyebrow accent">重新开始</span><h3>要重新开始吗？</h3><p>会清除记录、贴纸和光场选择。不能撤回。</p><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => setResetConfirm(false)}>先不要</button><button className="drawer-action danger" type="button" onClick={reset}>清除并重新开始</button></div></> : <><span className="eyebrow accent">设置</span><h3>按你的节奏</h3><p>可关闭声音，或重新开始。</p><div className="settings-list"><button type="button" onClick={() => setState(previous => ({ ...previous, soundEnabled: previous.soundEnabled === false }))}><span>声音</span><b>{soundEnabled ? '开启' : '关闭'}</b></button><button type="button" onClick={() => { setSettingsOpen(false); setTab('profile'); }}><span>性格</span><b>查看 ↗</b></button><button type="button" onClick={() => setResetConfirm(true)}><span>重新开始</span><b>确认</b></button></div></>} </> : <><span className="eyebrow accent">贴纸抽屉</span><h3>今天留下的</h3><p>先把还没想明白的，放在这里。</p><div className="drawer-sticker-stack"><StickerBadge id="origin" compact /><StickerBadge id="waited" compact /><StickerBadge id="postcard" compact /><StickerBadge id="signal" compact /></div><div className="drawer-action-row"><button className="drawer-action secondary" type="button" onClick={() => { setDrawerOpen(false); setTab('evidence'); }}>打开记录 <span>↗</span></button><button className="drawer-action" type="button" onClick={() => setSettingsOpen(true)}>设置 <span>⋯</span></button></div></>}</aside></div>}
+              {selectedEvidence && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setSelectedEvidence(null)}><section className="phone-sheet evidence-detail-sheet" role="dialog" aria-modal="true" aria-label="证据详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedEvidence(null)} aria-label="关闭证据详情">×</button><div className="evidence-detail-kicker"><span className={`log-dot ${selectedEvidence.kind}`}></span><span className="eyebrow accent">证据 · {selectedEvidence.time}</span></div><h3>{selectedEvidence.title}</h3><div className="evidence-detail-meta"><span>{selectedEvidence.category || '相处'}</span><span>只是观察</span></div><p className="evidence-detail-copy">{selectedEvidence.note}</p><div className="evidence-detail-section"><span className="eyebrow">为什么记录</span><p>记录一次靠近、停留或回应。</p></div><div className="evidence-detail-section"><span className="eyebrow">它可能是</span>{getPersonalityEvidence(state.evidence, selectedEvidence.supports?.[0] || '').length > 0 ? <div className="evidence-support-chips">{(selectedEvidence.supports || []).map(id => { const item = PERSONALITY_COPY.find(entry => entry[0] === id); return item ? <span key={id}>{item[1]}</span> : null; })}</div> : <p>还不够，再看看。</p>}</div><div className="sheet-mark"><Icon name={selectedEvidence.kind === 'relationship' ? 'sound' : selectedEvidence.kind === 'touch' ? 'light' : 'evidence'} /></div><small>这只是一次观察。</small></section></div>}
              {selectedBadge && <div className="phone-overlay badge-overlay" role="presentation" onClick={() => setSelectedBadge(null)}><section className="phone-sheet badge-detail-sheet" role="dialog" aria-modal="true" aria-label="徽章详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setSelectedBadge(null)} aria-label="关闭徽章详情">×</button><StickerBadge id={selectedBadge} compact unlocked={state.badges.includes(selectedBadge)} /><span className="eyebrow accent">徽章 · {BADGE_DETAILS[selectedBadge]?.label || '未知'}</span><h3>{BADGE_DETAILS[selectedBadge]?.title}</h3><p>{state.badges.includes(selectedBadge) ? BADGE_DETAILS[selectedBadge]?.copy : '这枚贴纸还在远处，等一段足够具体的观察。'}</p><small>{state.badges.includes(selectedBadge) ? '已经收进你的收藏。' : '证据足够时，它会自己出现。'}</small></section></div>}
-             {unlockedBadge && <div className="phone-overlay badge-overlay" role="presentation" onClick={() => setUnlockedBadge(null)}><section className="phone-sheet badge-unlock-sheet" role="dialog" aria-modal="true" aria-label="徽章解锁" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setUnlockedBadge(null)} aria-label="关闭解锁提示">×</button><span className="eyebrow accent">新的纪念章</span><StickerBadge id={unlockedBadge} compact /><h3>{BADGE_DETAILS[unlockedBadge]?.title}</h3><p>你注意到了一段具体的关系变化，为这段相处留下一枚纪念章。</p><button className="drawer-action" type="button" onClick={() => setUnlockedBadge(null)}>收好它 <span>↗</span></button></section></div>}
-              {progressOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={closeProgress}><section className="phone-sheet progress-detail-sheet" role="dialog" aria-modal="true" aria-label="探索进度详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={closeProgress} aria-label="关闭探索进度">×</button><span className="eyebrow accent">探索进度 · {state.currentCycle.progress}%</span><h3>慢慢认识它</h3><p>完成一轮探索，不代表揭晓答案，只代表你留下了足够多的具体时刻。</p><div className="progress-stage-list">{EXPLORATION_STAGES.map(stage => { const unlocked = state.currentCycle.progress >= stage.threshold; const current = currentStage.id === stage.id; const accessible = unlocked || current; return <button type="button" key={stage.id} className={`progress-stage ${unlocked ? 'is-done' : ''} ${current ? 'is-current' : ''} ${!accessible ? 'is-locked' : ''}`} onClick={() => setSelectedStage(stage.id)}><span className="progress-stage-icon"><Icon name={stage.icon} /></span><span className="progress-stage-copy"><b>{stage.threshold}%</b><strong>{stage.title}</strong><small>{accessible ? stage.description : '尚未解锁 · 点击查看名称'}</small></span><em>{unlocked ? '已留下' : current ? '现在' : '未到'}</em></button>; })}</div>{selectedStageData && <div className={`stage-detail-card ${state.currentCycle.progress >= selectedStageData.threshold || currentStage.id === selectedStageData.id ? '' : 'is-locked'}`}><span className="eyebrow accent">{selectedStageData.threshold}% · {state.currentCycle.progress >= selectedStageData.threshold ? '已解锁' : currentStage.id === selectedStageData.id ? '正在靠近' : '还未到达'}</span><h4>{selectedStageData.title}</h4>{state.currentCycle.progress >= selectedStageData.threshold || currentStage.id === selectedStageData.id ? <><p>{selectedStageData.description}</p><span className="eyebrow">代表性证据</span>{selectedStageEvidence.length ? <ul>{selectedStageEvidence.map(item => <li key={item.id}>{item.title}<small>{item.note}</small></li>)}</ul> : <p className="stage-empty">这一阶段还没有足够具体的线索，先让它保持空白。</p>}<small className="stage-next-hint">下一步：继续留下真实发生的片刻，不需要完成任务。</small></> : <p>{selectedStageData.lockedCopy}</p>}</div>}</section></div>}
-              {personalityOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setPersonalityOpen(null)}><section className="phone-sheet personality-detail-sheet" role="dialog" aria-modal="true" aria-label="性格推测详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setPersonalityOpen(null)} aria-label="关闭性格详情">×</button><span className="eyebrow accent">性格猜测 · 暂时理解</span><h3>{PERSONALITY_COPY.find(item => item[0] === personalityOpen)?.[1]}</h3><p>{PERSONALITY_COPY.find(item => item[0] === personalityOpen)?.[2]}</p><div className="personality-detail-score"><b>{state.personality[personalityOpen]}%</b><span>{relatedPersonalityEvidence.length ? `由 ${relatedPersonalityEvidence.length} 条相关线索支持` : '线索还不够'}</span></div><div className="personality-evidence-block"><span className="eyebrow">支持它的线索</span>{relatedPersonalityEvidence.length ? <ul>{relatedPersonalityEvidence.slice(0, 3).map(item => <li key={item.id}><strong>{item.title}</strong><small>{item.note}</small></li>)}</ul> : <p>目前还没有足够相关的观察，先把它当作一个开放的猜测。</p>}</div><small>这不是固定类型。下一次回应，可能会让它变成另一种样子。</small></section></div>}
-              {islandHearingOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setIslandHearingOpen(false)}><section className="phone-sheet hearing-detail-sheet" role="dialog" aria-modal="true" aria-label="声音明信片收件箱" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setIslandHearingOpen(false)} aria-label="关闭声音明信片">×</button><span className="eyebrow accent">听见 · 声音明信片</span><h3>有一段声音抵达了。</h3><p>它不是聊天，也不需要马上回复。先听见，再决定要不要留下。</p><div className="hearing-postcard"><div><span>047 号盒子 · 雾岸岛</span><small>今天 · 20:14 · 2.4 秒</small></div><SignalWave active={postcardReply || !postcardStatus} /><button type="button" className="hearing-play-button" onClick={() => { if (soundEnabled) playListenSound(); setMessage('你听见 047 号盒子留下的轻响。'); }}>播放这段声音</button></div>{postcardReply && <div className="reply-note"><span className="eyebrow">延迟回信</span><p>047 号盒子回了一段更轻的声音。</p><button type="button" onClick={() => { if (soundEnabled) playTone('reply'); setMessage('回信被你听见了。'); }}>再听一次</button></div>}<small>演示数据来自本地状态；没有真实的在线用户或录音上传。</small></section></div>}
-              {postcardOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setPostcardOpen(false)}><section className="phone-sheet postcard-composer-sheet" role="dialog" aria-modal="true" aria-label="声音明信片编辑器" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setPostcardOpen(false)} aria-label="关闭声音明信片编辑器">×</button><span className="eyebrow accent">寄出声音 · 1 / 2</span><h3>选择一段想寄出的动静</h3><p>这是一个可重复演示的本地明信片，不是真实的多人在线社交。</p><div className="postcard-choice-list">{[['soft-knock', '两下轻敲', '像一次礼貌的邀请'], ['low-hum', '一声低鸣', '留一点温暖的余韵'], ['night-note', '深夜短音', '让它在安静时抵达']].map(([id, title, copy]) => <button type="button" key={id} className={postcardDraft === id ? 'is-selected' : ''} onClick={() => setPostcardDraft(id)}><span>{title}</span><small>{copy}</small><b>{postcardDraft === id ? '已选' : '选择'}</b></button>)}</div><div className="postcard-preview-card"><img src="/assets/stickers/island-postcard-sticker.png" alt="声音明信片贴纸" /><span>寄往 · 雾岸岛</span><SignalWave active /><small>{postcardDraft === 'soft-knock' ? '两下轻敲，已经装进纸面。' : postcardDraft === 'low-hum' ? '一声低鸣，正在纸面里回响。' : '深夜短音，等一个安静时刻。'}</small></div><button className="drawer-action" type="button" onClick={sendPostcard}>寄出这张明信片 <span>↗</span></button></section></div>}
+              {unlockedBadge && <div className="phone-overlay badge-overlay" role="presentation" onClick={() => setUnlockedBadge(null)}><section className="phone-sheet badge-unlock-sheet" role="dialog" aria-modal="true" aria-label="徽章解锁" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setUnlockedBadge(null)} aria-label="关闭解锁提示">×</button><span className="eyebrow accent">新的纪念章</span><StickerBadge id={unlockedBadge} compact /><h3>{BADGE_DETAILS[unlockedBadge]?.title}</h3><p>你注意到了一段变化，为这段相处留下一枚纪念章。</p><button className="drawer-action" type="button" onClick={() => setUnlockedBadge(null)}>收好它 <span>↗</span></button></section></div>}
+              {progressOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={closeProgress}><section className="phone-sheet progress-detail-sheet" role="dialog" aria-modal="true" aria-label="探索进度详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={closeProgress} aria-label="关闭探索进度">×</button><span className="eyebrow accent">探索进度 · {state.currentCycle.progress}%</span><h3>慢慢认识</h3><p>这里没有答案，只有你留下的片刻。</p><div className="progress-stage-list">{EXPLORATION_STAGES.map(stage => { const unlocked = state.currentCycle.progress >= stage.threshold; const current = currentStage.id === stage.id; const accessible = unlocked || current; return <button type="button" key={stage.id} className={`progress-stage ${unlocked ? 'is-done' : ''} ${current ? 'is-current' : ''} ${!accessible ? 'is-locked' : ''}`} onClick={() => setSelectedStage(stage.id)}><span className="progress-stage-icon"><Icon name={stage.icon} /></span><span className="progress-stage-copy"><b>{stage.threshold}%</b><strong>{stage.title}</strong><small>{accessible ? stage.description : '还没到 · 点开看看'}</small></span><em>{unlocked ? '已留下' : current ? '现在' : '未到'}</em></button>; })}</div>{selectedStageData && <div className={`stage-detail-card ${state.currentCycle.progress >= selectedStageData.threshold || currentStage.id === selectedStageData.id ? '' : 'is-locked'}`}><span className="eyebrow accent">{selectedStageData.threshold}% · {state.currentCycle.progress >= selectedStageData.threshold ? '已解锁' : currentStage.id === selectedStageData.id ? '正在靠近' : '还未到达'}</span><h4>{selectedStageData.title}</h4>{state.currentCycle.progress >= selectedStageData.threshold || currentStage.id === selectedStageData.id ? <><p>{selectedStageData.description}</p><span className="eyebrow">留下的线索</span>{selectedStageEvidence.length ? <ul>{selectedStageEvidence.map(item => <li key={item.id}>{item.title}<small>{item.note}</small></li>)}</ul> : <p className="stage-empty">还没有线索。</p>}<small className="stage-next-hint">继续留下片刻，不用完成任务。</small></> : <p>{selectedStageData.lockedCopy}</p>}</div>}</section></div>}
+              {personalityOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setPersonalityOpen(null)}><section className="phone-sheet personality-detail-sheet" role="dialog" aria-modal="true" aria-label="性格推测详情" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setPersonalityOpen(null)} aria-label="关闭性格详情">×</button><span className="eyebrow accent">性格猜测</span><h3>{PERSONALITY_COPY.find(item => item[0] === personalityOpen)?.[1]}</h3><p>{PERSONALITY_COPY.find(item => item[0] === personalityOpen)?.[2]}</p><div className="personality-detail-score"><b>{state.personality[personalityOpen]}%</b><span>{relatedPersonalityEvidence.length ? `由 ${relatedPersonalityEvidence.length} 条线索支持` : '线索还不够'}</span></div><div className="personality-evidence-block"><span className="eyebrow">相关线索</span>{relatedPersonalityEvidence.length ? <ul>{relatedPersonalityEvidence.slice(0, 3).map(item => <li key={item.id}><strong>{item.title}</strong><small>{item.note}</small></li>)}</ul> : <p>还没有足够线索，先留在猜测里。</p>}</div><small>它不是固定类型，下一次回应可能会改变它。</small></section></div>}
+              {islandHearingOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setIslandHearingOpen(false)}><section className="phone-sheet hearing-detail-sheet" role="dialog" aria-modal="true" aria-label="回应收件箱" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setIslandHearingOpen(false)} aria-label="关闭回应">×</button><span className="eyebrow accent">听见 · 远处的回应</span><h3>有一段回应抵达了。</h3><p>不是聊天。先听见，再决定要不要留下。</p><div className="hearing-postcard"><div><span>047 号盒子 · 雾岸岛</span><small>今天 · 20:14 · 2.4 秒</small></div><SignalWave active={postcardReply || !postcardStatus} /><button type="button" className="hearing-play-button" onClick={() => { if (soundEnabled) playListenSound(); setMessage('你听见 047 号盒子留下的轻响。'); }}>听听回应</button></div>{postcardReply && <div className="reply-note"><span className="eyebrow">延迟回信</span><p>047 号盒子回了一点更轻的回应。</p><button type="button" onClick={() => { if (soundEnabled) playTone('reply'); setMessage('回信被你听见了。'); }}>再听一次</button></div>}<small>示例数据，不是真实在线用户。</small></section></div>}
+              {postcardOpen && <div className="phone-overlay sheet-overlay" role="presentation" onClick={() => setPostcardOpen(false)}><section className="phone-sheet postcard-composer-sheet" role="dialog" aria-modal="true" aria-label="回应编辑器" onClick={event => event.stopPropagation()}><button className="overlay-close" type="button" onClick={() => setPostcardOpen(false)} aria-label="关闭回应编辑器">×</button><span className="eyebrow accent">寄出回应 · 1 / 2</span><h3>选一段回应</h3><p>这是本地示例，不是真实在线社交。</p><div className="postcard-choice-list">{[['soft-knock', '两下轻敲', '轻轻邀请'], ['low-hum', '一声低鸣', '留一点温暖'], ['night-note', '深夜短音', '等它慢慢抵达']].map(([id, title, copy]) => <button type="button" key={id} className={postcardDraft === id ? 'is-selected' : ''} onClick={() => setPostcardDraft(id)}><span>{title}</span><small>{copy}</small><b>{postcardDraft === id ? '已选' : '选择'}</b></button>)}</div><div className="postcard-preview-card"><img src="/assets/stickers/island-postcard-sticker.png" alt="声音明信片贴纸" /><span>寄给 · 雾岸岛</span><SignalWave active /><small>{postcardDraft === 'soft-knock' ? '两下轻敲，已经装好。' : postcardDraft === 'low-hum' ? '一声低鸣，正在回响。' : '深夜短音，等它听见。'}</small></div><button className="drawer-action" type="button" onClick={sendPostcard}>寄出回应 <span>↗</span></button></section></div>}
           </div>
         </div>
       </section>
@@ -1456,4 +1513,3 @@ function App() {
 }
 
 createRoot(document.getElementById('root')).render(<App />);
-
