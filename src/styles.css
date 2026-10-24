@@ -998,6 +998,30 @@ body { min-width: 320px; overflow-x: hidden; }
   .site-nav a, .scene-quick-actions button { transition: none; }
 }
 
+/* Box regression restore: make the hero object larger without letting the canvas mask the card below. */
+.scene-stage {
+  height: clamp(430px, 40vw, 520px);
+  overflow: visible;
+  margin-bottom: clamp(18px, 2.4vw, 32px);
+}
+.scene-stage .scene-host { z-index: 1; }
+.scene-controls { position: relative; z-index: 2; }
+@media (max-width: 1180px) {
+  .scene-stage { height: 470px; }
+}
+@media (max-width: 920px) {
+  .scene-stage { height: min(68vw, 560px); }
+}
+@media (max-width: 700px) {
+  .scene-stage { height: min(82vw, 480px); min-height: 320px; }
+}
+@media (max-width: 520px) {
+  .scene-stage { height: min(96vw, 430px); min-height: 310px; }
+}
+
+/* Development-only shader/raycast inspection panel. It is never mounted in production. */
+.light-debug-panel { position: absolute; z-index: 20; top: 12px; left: 12px; max-width: min(360px, calc(100% - 24px)); margin: 0; padding: 9px 11px; border: 1px solid rgba(40, 50, 56, .24); border-radius: 9px; background: rgba(247, 242, 233, .86); box-shadow: 0 8px 22px rgba(49, 55, 59, .12); color: #263238; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; pointer-events: none; }
+
 /* Gesture stickers, hand-cut island map, and quiet glass controls. */
 .brand-mark { width: 58px; height: 58px; flex: 0 0 58px; margin: -9px; object-fit: contain; }
 .site-nav, .top-menu-button, .status-pill {
@@ -1273,11 +1297,6 @@ body { min-width: 320px; overflow-x: hidden; }
   .progress-stage-copy small { font-size: 9px; }
   .phone-sheet { max-height: min(82vh, 600px); }
 }
-
-
-/* Development-only shader/raycast inspection panel. It is never mounted in production. */
-.light-debug-panel { position: absolute; z-index: 20; top: 12px; left: 12px; max-width: min(360px, calc(100% - 24px)); margin: 0; padding: 9px 11px; border: 1px solid rgba(40, 50, 56, .24); border-radius: 9px; background: rgba(247, 242, 233, .86); box-shadow: 0 8px 22px rgba(49, 55, 59, .12); color: #263238; font: 10px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; pointer-events: none; }
-
 
 /* Island collage: transparent paper stickers carry the visual language; HTML buttons carry the interaction. */
 .island-art-card { padding: 6px; }

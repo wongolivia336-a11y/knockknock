@@ -472,9 +472,6 @@ const BOX_FRAGMENT_SHADER = `
   uniform vec3 uInteractionPosition;
   uniform vec3 uInteractionColor;
   uniform float uInteractionStrength;
-  uniform vec3 uShellColor;
-  uniform float uShellStrength;
-  uniform float uShellSubsurface;
   uniform float uDebugReveal;
   varying vec3 vLocalPosition;
   varying vec3 vLocalNormal;
@@ -557,22 +554,19 @@ const BOX_FRAGMENT_SHADER = `
     vec3 viewDirection = normalize(vViewPosition);
     float edgeLight = pow(1.0 - max(dot(normalize(vLocalNormal), normalize(vec3(-0.1, 0.48, 0.86))), 0.0), 1.65);
     float grain = (microGrain - 0.5) * uGrain;
-    vec3 atmosphere = mix(uShellColor, uAtmosphereColor, uAtmosphereStrength * (0.34 + lowFrequency * 0.16));
-    vec3 matteShell = uShellColor * (0.86 + diffuse * 0.14 + (lowFrequency - 0.5) * 0.018);
-    vec3 subsurface = mix(matteShell, atmosphere * (0.9 + diffuse * 0.08), uShellSubsurface);
-    vec3 surfaceColor = mix(matteShell, subsurface, 0.72) * uShellStrength;
-    surfaceColor += uShellColor * (0.025 + edgeLight * 0.02);
+    vec3 atmosphere = mix(uBaseColor, uAtmosphereColor, uAtmosphereStrength * (0.5 + lowFrequency * 0.25));
+    vec3 surfaceColor = atmosphere * (diffuse * 0.92 + (lowFrequency - 0.5) * 0.055 + edgeLight * 0.035);
     float fieldBlend = clamp(fieldAmount * (0.9 + uIntensity * 0.2), 0.0, 0.94);
-    vec3 shell = uShellColor * (0.94 + diffuse * 0.06) * uShellStrength;
-    float opticalMix = clamp(0.32 + fieldAmount * 0.5, 0.32, 0.86);
+    vec3 shell = vec3(0.86, 0.82, 0.76) * (0.88 + diffuse * 0.12);
+    float opticalMix = clamp(0.42 + fieldAmount * 0.55, 0.42, 0.96);
     vec3 localFieldColor = clamp(weightedField * (0.9 + uIntensity * 0.4) + fieldColor * 0.5 + uInteractionColor * interactionAmount * 0.5, 0.0, 1.0);
-    vec3 color = mix(surfaceColor, localFieldColor, opticalMix);
-    color = mix(color, mix(surfaceColor, fieldColor, fieldBlend), 0.08 + fieldAmount * 0.06);
-    color = mix(color, shell, 0.12 + edgeLight * 0.08);
+    vec3 color = mix(surfaceColor * 1.04, localFieldColor, opticalMix);
+    color = mix(color, mix(surfaceColor * 0.96, fieldColor, fieldBlend), 0.1 + fieldAmount * 0.08);
+    color = mix(color, shell, 0.055 + edgeLight * 0.055);
     float sideFace = smoothstep(0.24, 0.92, max(n.x, 0.0));
     float topFace = smoothstep(0.24, 0.92, max(n.y, 0.0));
-    color *= mix(vec3(1.0), vec3(0.94, 0.935, 0.92), sideFace);
-    color *= mix(vec3(1.0), vec3(1.035, 1.025, 1.0), topFace);
+    color *= mix(vec3(1.0), vec3(0.84, 0.85, 0.86), sideFace);
+    color *= mix(vec3(1.0), vec3(1.045, 1.025, 0.99), topFace);
     color += fieldColor * min(0.11, totalWeight * 0.15);
     color += clamp(weightedField * (0.14 + uIntensity * 0.1), 0.0, 0.28);
     color += fieldColor * 0.065 * mediumNoise;
@@ -653,9 +647,6 @@ function createBoxMaterial(baseColor, objectOffset, lightField) {
       uInteractionPosition: lightField.uInteractionPosition,
       uInteractionColor: lightField.uInteractionColor,
       uInteractionStrength: lightField.uInteractionStrength,
-      uShellColor: lightField.uShellColor,
-      uShellStrength: lightField.uShellStrength,
-      uShellSubsurface: lightField.uShellSubsurface,
       uDebugReveal: lightField.uDebugReveal,
     },
     vertexShader: BOX_VERTEX_SHADER,
@@ -722,15 +713,14 @@ function UnknownBoxScene({ feedback, onTouch, activePresetId, previewPresetId })
         uInteractionPosition: { value: new THREE.Vector3(0.08, 0.05, 0.54) },
         uInteractionColor: { value: new THREE.Color('#e5b8bc') },
         uInteractionStrength: { value: 0.2 },
-        uShellColor: { value: new THREE.Color('#F8F4EB') },
-        uShellStrength: { value: 1.0 },
-        uShellSubsurface: { value: 0.28 },
         uDebugReveal: { value: debugFieldOnly ? 1 : 0 },
       };
       const boxOffset = new THREE.Vector3(0, 0, 0);
-      const boxMaterial = createBoxMaterial('#F8F4EB', boxOffset, lightField);
+      const boxMaterial = createBoxMaterial('#F1EAE1', boxOffset, lightField);
       const box = new THREE.Mesh(new RoundedBoxGeometry(3.45, 3.35, 2.65, 18, 0.4), boxMaterial);
       box.position.set(0, 0.04, 0);
+      // Keep the approved geometry; give the hero object a little more visual presence.
+      box.scale.setScalar(1.12);
       box.userData.kind = 'box';
       stage.add(box);
       stage.updateMatrixWorld(true);
