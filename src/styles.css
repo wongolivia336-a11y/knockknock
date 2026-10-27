@@ -1726,6 +1726,23 @@ body { min-width: 320px; overflow-x: hidden; }
 .scene-stage .scene-host canvas { touch-action: none; cursor: grab; }
 .scene-stage .scene-host canvas:active { cursor: grabbing; }
 
+/* App copy reduction: keep the existing sticker hierarchy, remove helper-copy spacing. */
+.phone-content-head { margin-bottom: 13px; }
+.phone-content-head h2 { margin: 0; line-height: 1.08; }
+.phone-home { gap: 12px; }
+.care-social-card { min-height: 66px; padding-block: 8px; }
+.care-social-card__copy { gap: 7px; }
+.care-social-card__copy strong { font-size: 13px; }
+.care-social-card__actions { margin-top: 0; }
+.care-social-card__actions .text-link-button { min-height: 25px; }
+.phone-progress-card .progress-track { margin-top: 10px; }
+.island-hub-card { grid-template-rows: auto 40px auto; gap: 6px; min-height: 132px; }
+.island-hub-card strong { font-size: 11px; }
+.island-hub-card > b { font-size: 9px; }
+.island-visitors-heading { min-height: 82px; }
+.visitor-owner-note blockquote { margin: 0; }
+.hearing-postcard::after { content: none; }
+
 @media (max-width: 700px) {
   .scene-stage .scene-host canvas { touch-action: pan-y; cursor: default; }
 }
@@ -1737,9 +1754,8 @@ body { min-width: 320px; overflow-x: hidden; }
   .scene-stage { height: clamp(365px, 104vw, 450px); margin-bottom: 27px; }
   .scene-controls { margin-top: 8px; }
   .island-hub-cards { gap: 7px; }
-  .island-hub-card { min-height: 148px; padding: 9px 8px; }
-  .island-hub-card strong { font-size: 9px; }
-  .island-hub-card small { font-size: 7px; }
+  .island-hub-card { grid-template-rows: auto 40px auto; min-height: 130px; padding: 9px 8px; }
+  .island-hub-card strong { font-size: 10px; }
   .my-island-scene { min-height: 190px; }
   .my-island-home-sticker { top: 28px; }
   .my-island-item--shell { left: 6%; }
