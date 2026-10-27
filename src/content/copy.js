@@ -11,10 +11,10 @@ export const COPY = {
     listen: { label: '听听看', hover: '听听它的动静。' },
   },
   tabs: {
-    box: { label: '照料与回应', title: '今天的盒子', copy: '陪它过今天。' },
-    evidence: { label: '记录', title: '留下的线索', copy: '记下它的回应。' },
-    island: { label: '盒子之间的来访', title: '盒群岛', copy: '去看看别的盒子。' },
-    profile: { label: '猜猜它', title: '性格', copy: '这是相处中的暂时印象。' },
+    box: '今天的盒子',
+    evidence: '记录',
+    island: '盒群岛',
+    profile: '性格',
   },
   state: {
     idle: { eyebrow: '此刻安静', title: '敲两下，看看它会不会回应。' },
